@@ -2072,7 +2072,7 @@ function Window:Tab(name)
 	local tab = setmetatable({ Window = self, Page = page, Columns = {}, Name = name }, Tab)
 	for i = 1, 2 do
 		local col = New("Frame", {
-			Size = UDim2.new(0.5, -11, 0, 0),
+			Size = UDim2.new(0.5, -7, 0, 0),
 			AutomaticSize = Enum.AutomaticSize.Y,
 			BackgroundTransparency = 1,
 			LayoutOrder = i,
