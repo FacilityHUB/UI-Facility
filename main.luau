@@ -2060,6 +2060,8 @@ function Window:Tab(name)
 		AutomaticCanvasSize = Enum.AutomaticSize.Y,
 		ScrollBarThickness = 3,
 		ScrollBarImageColor3 = Theme.AccentDim,
+		VerticalScrollBarInset = Enum.ScrollBarInset.None,
+		VerticalScrollBarInset = Enum.ScrollBarInset.None,
 		Visible = false,
 		Parent = self.Body,
 	})
