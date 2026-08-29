@@ -2058,8 +2058,8 @@ function Window:Tab(name)
 		BorderSizePixel = 0,
 		CanvasSize = UDim2.new(),
 		AutomaticCanvasSize = Enum.AutomaticSize.Y,
-		ScrollBarThickness = 2,
-		ScrollBarImageColor3 = Theme.Track,
+		ScrollBarThickness = 3,
+		ScrollBarImageColor3 = Theme.AccentDim,
 		Visible = false,
 		Parent = self.Body,
 	})
@@ -2129,7 +2129,7 @@ function Window:SetTab(tab)
 	tab.Page.Visible = true
 	tab.Page.Position = UDim2.fromOffset(0, 6)
 	Tween(tab.Page, { Position = UDim2.fromOffset(0, 0) })
-	Tween(tab.Button, { TextColor3 = Theme.TextBright }, EASE_FAST)
+	Tween(tab.Button, { TextColor3 = Theme.Accent }, EASE_FAST)
 end
 
 function Window:Action(text, callback)
@@ -2230,13 +2230,32 @@ function Library:Window(opts)
 		BorderSizePixel = 0,
 		Parent = topBar,
 	})
-	local title = Label(topBar, "", Theme.TextBright, 14, Theme.FontMedium)
-	title.Position = UDim2.fromOffset(16, 0)
-	title.Size = UDim2.new(0, 0, 1, 0)
-	title.AutomaticSize = Enum.AutomaticSize.X
-	local nameText = opts.Title or "demoui"
-	local suffix = opts.Suffix or ".app"
-	title.Text = nameText .. '<font color="rgb(108,108,113)">' .. suffix .. "</font>"
+	local title = New("Frame", {
+		Size = UDim2.new(0, 0, 1, 0),
+		Position = UDim2.fromOffset(16, 0),
+		AutomaticSize = Enum.AutomaticSize.X,
+		BackgroundTransparency = 1,
+		Parent = topBar,
+	})
+	local titleList = List(title, 0, Enum.FillDirection.Horizontal)
+	titleList.VerticalAlignment = Enum.VerticalAlignment.Center
+
+	local titleName = Label(title, opts.Title or "facility", Theme.TextBright, 14, Theme.FontMedium)
+	titleName.Size = UDim2.new(0, 0, 1, 0)
+	titleName.AutomaticSize = Enum.AutomaticSize.X
+
+	local titleSuffix = Label(title, opts.Suffix or ".app", Theme.Accent, 14, Theme.FontMedium)
+	titleSuffix.Size = UDim2.new(0, 0, 1, 0)
+	titleSuffix.AutomaticSize = Enum.AutomaticSize.X
+	titleSuffix.LayoutOrder = 2
+
+	local titleDivider = New("Frame", {
+		Size = UDim2.fromOffset(1, 14),
+		AnchorPoint = Vector2.new(0, 0.5),
+		BackgroundColor3 = Theme.Border,
+		BorderSizePixel = 0,
+		Parent = topBar,
+	})
 
 	local tabBar = New("ScrollingFrame", {
 		Size = UDim2.new(1, -180, 1, 0),
@@ -2256,7 +2275,9 @@ function Library:Window(opts)
 
 	local function layoutTabs()
 		local s = math.max(scale.Scale, 0.05)
-		local x = 16 + title.AbsoluteSize.X / s + 22
+		local width = title.AbsoluteSize.X / s
+		titleDivider.Position = UDim2.new(0, 16 + width + 12, 0.5, 0)
+		local x = 16 + width + 25
 		tabBar.Position = UDim2.fromOffset(x, 0)
 		tabBar.Size = UDim2.new(1, -(x + 14), 1, 0)
 	end
@@ -2273,12 +2294,22 @@ function Library:Window(opts)
 	})
 
 	local footerHeight = opts.Footer == false and 0 or 40
+	local shell = New("Frame", {
+		Size = UDim2.new(1, -28, 1, -(47 + footerHeight + 22)),
+		Position = UDim2.fromOffset(14, 58),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		Parent = main,
+	})
+	Corner(shell, 8)
+	Stroke(shell, Theme.SectionBorder)
+
 	local body = New("Frame", {
-		Size = UDim2.new(1, -36, 1, -(47 + footerHeight + 20)),
-		Position = UDim2.fromOffset(18, 62),
+		Size = UDim2.new(1, -24, 1, -24),
+		Position = UDim2.fromOffset(12, 12),
 		BackgroundTransparency = 1,
 		ClipsDescendants = true,
-		Parent = main,
+		Parent = shell,
 	})
 
 	local footer, footerLine
