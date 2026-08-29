@@ -2067,7 +2067,7 @@ function Window:Tab(name)
 	})
 	local pageList = List(page, 14, Enum.FillDirection.Horizontal)
 	pageList.SortOrder = Enum.SortOrder.LayoutOrder
-	Pad(page, 2, 2, 2, 2)
+	Pad(page, 2, 8, 2, 8)
 
 	local tab = setmetatable({ Window = self, Page = page, Columns = {}, Name = name }, Tab)
 	for i = 1, 2 do
