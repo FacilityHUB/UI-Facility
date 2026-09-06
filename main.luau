@@ -146,7 +146,7 @@ function Library:OnRepaint(callback)
 	return callback
 end
 Library.ThemeAlpha = ThemeAlpha
-Library.Version = "2026.09.02-disable"
+Library.Version = "2026.09.02-dialog"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -811,35 +811,51 @@ function Elements:Input(opts)
 	return api
 end
 
-local function MakeHint(parent, text)
+local function MakeHint(owner, parent, text)
 	local mark = Label(parent, "?", Theme.TextDim, 12)
 	mark.Size = UDim2.fromOffset(10, 18)
 	mark.TextXAlignment = Enum.TextXAlignment.Center
 
+	local window = owner and owner.Window
 	local tip
+
+	local function hide()
+		if tip then tip:Destroy() tip = nil end
+	end
+
 	Track(mark.MouseEnter:Connect(function()
-		if tip then return end
+		hide()
+		local layer = window and window.Overlay or mark
 		tip = New("TextLabel", {
-			BackgroundColor3 = Theme.Field,
+			BackgroundColor3 = Theme.PopupBg,
 			Text = text,
 			TextColor3 = Theme.TextBright,
 			TextSize = 12,
 			Font = Theme.Font,
-			AutomaticSize = Enum.AutomaticSize.XY,
-			Size = UDim2.fromOffset(0, 0),
+			TextWrapped = true,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			AutomaticSize = Enum.AutomaticSize.Y,
+			Size = UDim2.fromOffset(210, 0),
 			AnchorPoint = Vector2.new(0, 1),
-			Position = UDim2.new(0, 14, 0, -4),
-			ZIndex = 60,
+			ZIndex = 340,
 			BorderSizePixel = 0,
-			Parent = mark,
+			Parent = layer,
 		})
-		Pad(tip, 5, 8)
+		Pad(tip, 6, 9)
 		Corner(tip, 4)
-		Stroke(tip, Theme.Border)
+		Stroke(tip, Theme.PopupBorder)
+
+		if window then
+			local scale = math.max(window.Scale.Scale, 0.05)
+			local x = (mark.AbsolutePosition.X - window.Main.AbsolutePosition.X) / scale
+			local y = (mark.AbsolutePosition.Y - window.Main.AbsolutePosition.Y) / scale
+			local width = window.Main.AbsoluteSize.X / scale
+			tip.Position = UDim2.fromOffset(math.clamp(x + 14, 8, math.max(width - 218, 8)), y - 4)
+		else
+			tip.Position = UDim2.new(0, 14, 0, -4)
+		end
 	end))
-	Track(mark.MouseLeave:Connect(function()
-		if tip then tip:Destroy() tip = nil end
-	end))
+	Track(mark.MouseLeave:Connect(hide))
 	return mark
 end
 
@@ -890,7 +906,7 @@ function Elements:Toggle(opts)
 	text.Size = UDim2.fromOffset(0, 18)
 	text.AutomaticSize = Enum.AutomaticSize.X
 	text.Position = UDim2.fromOffset(0, 0)
-	if opts.Hint then MakeHint(left, opts.Hint) end
+	if opts.Hint then MakeHint(self, left, opts.Hint) end
 
 	local right = New("Frame", {
 		Size = UDim2.new(0, 0, 1, 0),
@@ -2582,6 +2598,8 @@ function Window:Confirm(opts)
 	local content = modal.Content
 	content:Label(opts.Text or "are you sure?", { Style = "text" })
 
+	modal.Scroller.Size = UDim2.new(1, -16, 1, -95)
+
 	local answered = false
 	local function answer(callback)
 		answered = true
@@ -2589,7 +2607,16 @@ function Window:Confirm(opts)
 		Library:SafeCallback("action", callback)
 	end
 
-	content:ButtonRow({
+	local footer = New("Frame", {
+		Size = UDim2.new(1, -24, 0, 30),
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 12, 1, -12),
+		BackgroundTransparency = 1,
+		ZIndex = modal.Frame.ZIndex,
+		Parent = modal.Frame,
+	})
+	local footerContainer = NewContainer(self, footer)
+	footerContainer:ButtonRow({
 		{
 			Text = opts.Confirm or "save",
 			Callback = function() answer(opts.OnConfirm) end,
