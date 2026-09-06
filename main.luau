@@ -131,7 +131,7 @@ function Library:OnRepaint(callback)
 	return callback
 end
 Library.ThemeAlpha = ThemeAlpha
-Library.Version = "2026.09.01-hotkeys-3"
+Library.Version = "2026.09.01-hotkeys-4"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -1758,6 +1758,7 @@ function Elements:Keybind(opts)
 	pl.Size = UDim2.new(0, 0, 1, 0)
 	pl.AutomaticSize = Enum.AutomaticSize.X
 
+	local api
 	local listening = false
 	local held = false
 	local active = opts.Default == true
@@ -1824,7 +1825,7 @@ function Elements:Keybind(opts)
 		if gpe or not key or n ~= key then return end
 		if isToggle then
 			active = not active
-			api.Active = active
+			if api then api.Active = active end
 			Library:RefreshHotkeys()
 			if opts.Callback then task.spawn(opts.Callback, active) end
 		else
@@ -1842,7 +1843,7 @@ function Elements:Keybind(opts)
 		end
 	end))
 
-	local api = {
+	api = {
 		Instance = row,
 		Active = active,
 		Get = function() return key or "" end,
@@ -3047,23 +3048,26 @@ function Library:CreateHotkeyPanel(opts)
 	})
 	Corner(panel, 8)
 	Stroke(panel, Theme.SectionBorder)
-	Pad(panel, 9, 11)
-
 	local inner = New("Frame", {
 		Size = UDim2.new(1, 0, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
 		Parent = panel,
 	})
-	List(inner, 6)
+	List(inner, 0)
 
 	local header = New("Frame", {
-		Size = UDim2.new(1, 0, 0, 16),
+		Size = UDim2.new(1, 0, 0, 32),
 		BackgroundTransparency = 1,
 		Parent = inner,
 	})
+	Pad(header, 0, 11, 0, 11)
 	local icon = AttachIcon(header, opts.Icon or "keyboard", Theme.TextBright, 14)
 	local inset = icon and 20 or 0
+	if icon then
+		icon.AnchorPoint = Vector2.new(0, 0.5)
+		icon.Position = UDim2.new(0, 0, 0.5, 0)
+	end
 	local title = Label(header, opts.Title or "hotkeys", Theme.TextBright, Theme.TextSize, Theme.FontMedium)
 	title.Position = UDim2.fromOffset(inset, 0)
 	title.Size = UDim2.new(1, -inset, 1, 0)
@@ -3076,12 +3080,20 @@ function Library:CreateHotkeyPanel(opts)
 		Parent = inner,
 	})
 
-	local rows = New("Frame", {
+	local body = New("Frame", {
 		Size = UDim2.new(1, 0, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
 		LayoutOrder = 3,
 		Parent = inner,
+	})
+	Pad(body, 8, 11, 9, 11)
+
+	local rows = New("Frame", {
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundTransparency = 1,
+		Parent = body,
 	})
 	List(rows, 4)
 
