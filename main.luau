@@ -131,7 +131,7 @@ function Library:OnRepaint(callback)
 	return callback
 end
 Library.ThemeAlpha = ThemeAlpha
-Library.Version = "2026.08.30-theme-4"
+Library.Version = "2026.08.31-acrylic"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -2936,12 +2936,57 @@ function Library:SetToggleKey(key)
 	return self.ToggleKey or self.ToggleInput
 end
 
+Library.AcrylicEnabled = false
+Library.TransparencyEnabled = false
+Library.AcrylicSize = 18
+
+function Library:SetAcrylic(state, size)
+	self.AcrylicEnabled = state and true or false
+	if size then self.AcrylicSize = size end
+
+	if not self.AcrylicEnabled or not self.Open then
+		if self.AcrylicBlur then
+			local blur = self.AcrylicBlur
+			self.AcrylicBlur = nil
+			pcall(function()
+				Tween(blur, { Size = 0 }).Completed:Once(function() blur:Destroy() end)
+			end)
+		end
+		return self.AcrylicEnabled
+	end
+
+	if self.AcrylicBlur then
+		pcall(function() Tween(self.AcrylicBlur, { Size = self.AcrylicSize }) end)
+		return true
+	end
+
+	pcall(function()
+		local blur = Instance.new("BlurEffect")
+		blur.Name = "FacilityAcrylic"
+		blur.Size = 0
+		blur.Parent = Lighting
+		self.AcrylicBlur = blur
+		Tween(blur, { Size = self.AcrylicSize })
+	end)
+	return true
+end
+
+function Library:SetTransparency(state)
+	self.TransparencyEnabled = state and true or false
+	local opacity = self.TransparencyEnabled and 0.88 or 1
+	for _, window in ipairs(self.Windows) do
+		window:SetOpacity(opacity)
+	end
+	return self.TransparencyEnabled
+end
+
 function Library:ToggleUI(state)
 	if state == nil then state = not self.Open end
 	self.Open = state
 	for _, window in ipairs(self.Windows) do
 		window:SetVisible(state)
 	end
+	if self.AcrylicEnabled then self:SetAcrylic(true) end
 	return self.Open
 end
 
@@ -3040,6 +3085,7 @@ function Library:Destroy()
 	table.clear(self.Windows)
 	if self.NotifyGui then self.NotifyGui:Destroy() self.NotifyGui = nil end
 	if self.MobileGui then self.MobileGui:Destroy() self.MobileGui = nil self.MobileButton = nil end
+	if self.AcrylicBlur then pcall(function() self.AcrylicBlur:Destroy() end) self.AcrylicBlur = nil end
 	table.clear(self.Registry)
 	table.clear(self.Flags)
 end
