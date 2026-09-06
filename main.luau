@@ -615,6 +615,34 @@ function Elements:ButtonRow(list)
 	return { Instance = row, Buttons = buttons }
 end
 
+function Elements:Split(builders)
+	local row = New("Frame", {
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundTransparency = 1,
+		Parent = self.Container,
+	})
+	local list = List(row, 12, Enum.FillDirection.Horizontal)
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+
+	local count = math.max(#builders, 1)
+	local columns = {}
+	for i = 1, count do
+		local frame = New("Frame", {
+			Size = UDim2.new(1 / count, -(12 * (count - 1)) / count, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 1,
+			LayoutOrder = i,
+			Parent = row,
+		})
+		List(frame, 9)
+		columns[i] = NewContainer(self.Window, frame, self.Float)
+		if type(builders[i]) == "function" then builders[i](columns[i]) end
+	end
+
+	return { Instance = row, Columns = columns }
+end
+
 function Elements:Input(opts)
 	opts = opts or {}
 	local flag = FlagOf(opts)
@@ -1971,12 +1999,54 @@ end
 local Tab = {}
 Tab.__index = Tab
 
+function Tab:Block()
+	if self.CurrentBlock then return self.CurrentBlock end
+
+	self.Order = self.Order + 1
+	local block = New("Frame", {
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundTransparency = 1,
+		LayoutOrder = self.Order,
+		Parent = self.Page,
+	})
+	local list = List(block, 14, Enum.FillDirection.Horizontal)
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+
+	self.Columns = {}
+	for i = 1, 2 do
+		local frame = New("Frame", {
+			Size = UDim2.new(0.5, -7, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 1,
+			LayoutOrder = i,
+			Parent = block,
+		})
+		List(frame, 14)
+		self.Columns[i] = setmetatable({ Window = self.Window, Frame = frame, Order = 0 }, Column)
+	end
+
+	self.CurrentBlock = block
+	return block
+end
+
 function Tab:Column(index)
+	self:Block()
 	return self.Columns[index or 1]
 end
 
+function Tab:Full(title)
+	self.Order = self.Order + 1
+	local section = CreateSection(self.Window, self.Page, title, self.Order)
+	self.CurrentBlock = nil
+	return section
+end
+
 function Tab:Section(title, columnIndex)
-	return self.Columns[columnIndex or 1]:Section(title)
+	if columnIndex == "full" or columnIndex == 0 then
+		return self:Full(title)
+	end
+	return self:Column(columnIndex or 1):Section(title)
 end
 
 local Window = {}
@@ -2064,22 +2134,17 @@ function Window:Tab(name)
 		Visible = false,
 		Parent = self.Body,
 	})
-	local pageList = List(page, 14, Enum.FillDirection.Horizontal)
+	local pageList = List(page, 14)
 	pageList.SortOrder = Enum.SortOrder.LayoutOrder
 	Pad(page, 2, 8, 2, 8)
 
-	local tab = setmetatable({ Window = self, Page = page, Columns = {}, Name = name }, Tab)
-	for i = 1, 2 do
-		local col = New("Frame", {
-			Size = UDim2.new(0.5, -7, 0, 0),
-			AutomaticSize = Enum.AutomaticSize.Y,
-			BackgroundTransparency = 1,
-			LayoutOrder = i,
-			Parent = page,
-		})
-		List(col, 14)
-		tab.Columns[i] = setmetatable({ Window = self, Frame = col, Order = 0 }, Column)
-	end
+	local tab = setmetatable({
+		Window = self,
+		Page = page,
+		Columns = {},
+		Name = name,
+		Order = 0,
+	}, Tab)
 
 	local button = New("TextButton", {
 		Size = UDim2.new(0, 0, 1, 0),
