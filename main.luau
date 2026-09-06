@@ -124,8 +124,14 @@ Library.AddonPaths = {
 }
 Library.Addons = {}
 Library.Painted = Painted
+Library.RepaintHooks = {}
+
+function Library:OnRepaint(callback)
+	table.insert(self.RepaintHooks, callback)
+	return callback
+end
 Library.ThemeAlpha = ThemeAlpha
-Library.Version = "2026.08.30-theme-3"
+Library.Version = "2026.08.30-theme-4"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -194,6 +200,11 @@ function Library:Repaint()
 			end
 		end)
 		if not ok then table.remove(Painted, i) end
+	end
+
+	for i = #self.RepaintHooks, 1, -1 do
+		local ok = pcall(self.RepaintHooks[i])
+		if not ok then table.remove(self.RepaintHooks, i) end
 	end
 end
 
@@ -356,12 +367,12 @@ local function KeyName(input)
 	return nil
 end
 
-local function Hover(button, target, base, hoverColor)
+local function Hover(button, target, baseKey, hoverKey)
 	Track(button.MouseEnter:Connect(function()
-		Tween(target, { BackgroundColor3 = hoverColor }, EASE_FAST)
+		Tween(target, { BackgroundColor3 = Theme[hoverKey] }, EASE_FAST)
 	end))
 	Track(button.MouseLeave:Connect(function()
-		Tween(target, { BackgroundColor3 = base }, EASE_FAST)
+		Tween(target, { BackgroundColor3 = Theme[baseKey] }, EASE_FAST)
 	end))
 end
 
@@ -620,7 +631,7 @@ local function MakeButton(parent, opts, size, order)
 	text.Size = UDim2.fromScale(1, 1)
 	text.TextXAlignment = Enum.TextXAlignment.Center
 	text.TextTruncate = Enum.TextTruncate.AtEnd
-	Hover(btn, btn, Theme.Field, Theme.FieldHover)
+	Hover(btn, btn, "Field", "FieldHover")
 	Track(btn.Activated:Connect(function()
 		if opts.Callback then task.spawn(opts.Callback) end
 	end))
@@ -912,6 +923,8 @@ function Elements:Toggle(opts)
 		end
 		refresh()
 
+		Library:OnRepaint(refresh)
+
 		if bindFlag then
 			Library:Register(bindFlag, {
 				Type = "Keybind",
@@ -1014,6 +1027,8 @@ function Elements:Toggle(opts)
 		end))
 		return api
 	end
+
+	Library:OnRepaint(function() render(false) end)
 
 	if flag then
 		Library.Flags[flag] = state
@@ -1215,7 +1230,7 @@ function Elements:Dropdown(opts)
 	Track(button.Activated:Connect(function()
 		self.Window:ToggleFloating(panel, button, true)
 	end))
-	Hover(button, button, Theme.Field, Theme.FieldHover)
+	Hover(button, button, "Field", "FieldHover")
 
 	function api:Set(v, silent)
 		selected = v
@@ -1236,6 +1251,18 @@ function Elements:Dropdown(opts)
 
 	build()
 	refresh()
+
+	Library:OnRepaint(function()
+		refresh()
+		local open = false
+		for _, panel_ in ipairs(self.Window.FloatStack) do
+			if panel_ == panel then open = true break end
+		end
+		bStroke.Color = open and Theme.Accent or Theme.Border
+		for _, bar in ipairs(chev:GetChildren()) do
+			if bar:IsA("Frame") then bar.BackgroundColor3 = Theme.TextDim end
+		end
+	end)
 
 	if flag then
 		Library:Register(flag, {
@@ -1640,6 +1667,8 @@ function BuildColorPicker(owner, swatch, opts)
 		owner.Window:ToggleFloating(panel, swatch)
 	end))
 
+	Library:OnRepaint(render)
+
 	if flag then
 		Library.Flags[flag] = ToHex(base, alpha)
 		Library:Register(flag, {
@@ -1799,6 +1828,8 @@ function Elements:Keybind(opts)
 			apply()
 		end,
 	}
+
+	Library:OnRepaint(refresh)
 
 	if flag then
 		Library.Flags[flag] = key or ""
@@ -2143,6 +2174,10 @@ function Window:Tab(name)
 
 	tab.Button = button
 	table.insert(self.Tabs, tab)
+
+	Library:OnRepaint(function()
+		button.TextColor3 = (self.ActiveTab == tab) and Theme.Accent or Theme.TextDim
+	end)
 
 	Track(button.Activated:Connect(function()
 		self:SetTab(tab)
