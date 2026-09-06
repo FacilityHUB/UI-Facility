@@ -75,6 +75,26 @@ end
 local EASE      = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local EASE_FAST = TweenInfo.new(0.10, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
+local Painted = {}
+local ThemeIndex = {}
+local THEME_ORDER = {
+	"Window", "WindowBorder", "TopBar", "Section", "SectionBorder",
+	"Group", "GroupBorder", "Field", "FieldHover", "Border", "BorderSoft",
+	"PopupBg", "PopupBorder", "Track", "Text", "TextDim", "TextBright",
+	"TextMarked", "TextCode", "Danger", "Accent", "AccentSoft", "AccentDim",
+}
+
+local function IndexTheme()
+	table.clear(ThemeIndex)
+	for _, key in ipairs(THEME_ORDER) do
+		local value = Theme[key]
+		if typeof(value) == "Color3" and ThemeIndex[tostring(value)] == nil then
+			ThemeIndex[tostring(value)] = key
+		end
+	end
+end
+IndexTheme()
+
 local Library = {}
 Library.Theme = Theme
 Library.Flags = {}
@@ -97,7 +117,7 @@ Library.AddonPaths = {
 }
 Library.Addons = {}
 Library.Painted = Painted
-Library.Version = "2026.08.30-theme"
+Library.Version = "2026.08.30-theme-2"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -215,26 +235,6 @@ local function Track(conn)
 	table.insert(Library.Connections, conn)
 	return conn
 end
-
-local Painted = {}
-local ThemeIndex = {}
-local THEME_ORDER = {
-	"Window", "WindowBorder", "TopBar", "Section", "SectionBorder",
-	"Group", "GroupBorder", "Field", "FieldHover", "Border", "BorderSoft",
-	"PopupBg", "PopupBorder", "Track", "Text", "TextDim", "TextBright",
-	"TextMarked", "TextCode", "Danger", "Accent", "AccentSoft", "AccentDim",
-}
-
-local function IndexTheme()
-	table.clear(ThemeIndex)
-	for _, key in ipairs(THEME_ORDER) do
-		local value = Theme[key]
-		if typeof(value) == "Color3" and ThemeIndex[tostring(value)] == nil then
-			ThemeIndex[tostring(value)] = key
-		end
-	end
-end
-IndexTheme()
 
 local function New(class, props, children)
 	local inst = Instance.new(class)
