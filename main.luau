@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
 
 local function GetPlayerGui()
@@ -2241,6 +2242,210 @@ function Window:SetSize(width, height)
 	if self.Refit then self.Refit() end
 end
 
+function Window:IconAction(icon, callback, order)
+	if not self.FooterLeft then return nil end
+
+	local button = New("ImageButton", {
+		Size = UDim2.fromOffset(18, 18),
+		BackgroundTransparency = 1,
+		ImageColor3 = Theme.TextDim,
+		LayoutOrder = order or 1,
+		Parent = self.FooterLeft,
+	})
+
+	local resolved = ResolveIcon(icon)
+	if resolved then
+		button.Image = resolved.Image
+		if resolved.RectOffset then button.ImageRectOffset = resolved.RectOffset end
+		if resolved.RectSize then button.ImageRectSize = resolved.RectSize end
+	end
+
+	Track(button.MouseEnter:Connect(function()
+		Tween(button, { ImageColor3 = Theme.Accent }, EASE_FAST)
+	end))
+	Track(button.MouseLeave:Connect(function()
+		Tween(button, { ImageColor3 = Theme.TextDim }, EASE_FAST)
+	end))
+	Track(button.Activated:Connect(function()
+		if callback then task.spawn(callback) end
+	end))
+
+	return button
+end
+
+function Window:Modal(opts)
+	opts = opts or {}
+	local window = self
+
+	local root = New("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Visible = false,
+		ZIndex = 200,
+		Parent = self.Main,
+	})
+
+	local scrim = New("TextButton", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+		BackgroundTransparency = 1,
+		AutoButtonColor = false,
+		Text = "",
+		ZIndex = 200,
+		Parent = root,
+	})
+	Corner(scrim, 10)
+
+	local card = New("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.new(0, opts.Width or 340, opts.Height or 0.78, 0),
+		BackgroundColor3 = Theme.Window,
+		BorderSizePixel = 0,
+		Active = true,
+		ZIndex = 210,
+		Parent = root,
+	})
+	Corner(card, 10)
+	Stroke(card, Theme.WindowBorder)
+	local cardScale = New("UIScale", { Parent = card })
+
+	local header = New("Frame", {
+		Size = UDim2.new(1, 0, 0, 38),
+		BackgroundTransparency = 1,
+		ZIndex = 210,
+		Parent = card,
+	})
+	local heading = Label(header, opts.Title or "panel", Theme.TextBright, 14, Theme.FontMedium)
+	heading.Position = UDim2.fromOffset(14, 0)
+	heading.Size = UDim2.new(1, -48, 1, 0)
+	heading.ZIndex = 210
+
+	local close = New("TextButton", {
+		Size = UDim2.fromOffset(20, 20),
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -12, 0.5, 0),
+		BackgroundTransparency = 1,
+		AutoButtonColor = false,
+		Text = "",
+		ZIndex = 210,
+		Parent = header,
+	})
+	local closeBars = {}
+	for i = 1, 2 do
+		local bar = New("Frame", {
+			Size = UDim2.fromOffset(13, 2),
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Rotation = i == 1 and 45 or -45,
+			BackgroundColor3 = Theme.TextDim,
+			BorderSizePixel = 0,
+			ZIndex = 210,
+			Parent = close,
+		})
+		Corner(bar, 1)
+		closeBars[i] = bar
+	end
+
+	New("Frame", {
+		Size = UDim2.new(1, 0, 0, 1),
+		Position = UDim2.new(0, 0, 0, 38),
+		BackgroundColor3 = Theme.BorderSoft,
+		BorderSizePixel = 0,
+		ZIndex = 210,
+		Parent = card,
+	})
+
+	local scroller = New("ScrollingFrame", {
+		Size = UDim2.new(1, -16, 1, -50),
+		Position = UDim2.fromOffset(8, 45),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ScrollBarThickness = 3,
+		ScrollBarImageColor3 = Theme.AccentDim,
+		VerticalScrollBarInset = Enum.ScrollBarInset.None,
+		ZIndex = 210,
+		Parent = card,
+	})
+	List(scroller, 9)
+	Pad(scroller, 4, 10, 8, 6)
+
+	local api = {
+		Root = root,
+		Frame = card,
+		Scroller = scroller,
+		Content = NewContainer(self, scroller),
+		Open = false,
+	}
+
+	local function setBlur(state)
+		if state then
+			if api.Blur then return end
+			pcall(function()
+				local blur = Instance.new("BlurEffect")
+				blur.Name = "FacilityModalBlur"
+				blur.Size = 0
+				blur.Parent = Lighting
+				api.Blur = blur
+				Tween(blur, { Size = opts.Blur or 16 })
+			end)
+		elseif api.Blur then
+			local blur = api.Blur
+			api.Blur = nil
+			pcall(function()
+				Tween(blur, { Size = 0 }).Completed:Once(function()
+					blur:Destroy()
+				end)
+			end)
+		end
+	end
+
+	function api:SetOpen(state)
+		if state == self.Open then return end
+		self.Open = state
+		if state then
+			window:CloseFloating()
+			root.Visible = true
+			scrim.BackgroundTransparency = 1
+			cardScale.Scale = 0.96
+			Tween(scrim, { BackgroundTransparency = opts.Dim or 0.45 })
+			Tween(cardScale, { Scale = 1 })
+			setBlur(true)
+		else
+			window:CloseFloating()
+			Tween(scrim, { BackgroundTransparency = 1 })
+			Tween(cardScale, { Scale = 0.96 }).Completed:Once(function()
+				if not api.Open then root.Visible = false end
+			end)
+			setBlur(false)
+		end
+	end
+
+	function api:Toggle()
+		self:SetOpen(not self.Open)
+	end
+
+	Track(scrim.Activated:Connect(function() api:SetOpen(false) end))
+	Track(close.Activated:Connect(function() api:SetOpen(false) end))
+	Track(close.MouseEnter:Connect(function()
+		for _, bar in ipairs(closeBars) do Tween(bar, { BackgroundColor3 = Theme.Danger }, EASE_FAST) end
+	end))
+	Track(close.MouseLeave:Connect(function()
+		for _, bar in ipairs(closeBars) do Tween(bar, { BackgroundColor3 = Theme.TextDim }, EASE_FAST) end
+	end))
+	Track(UserInputService.InputBegan:Connect(function(input, gpe)
+		if not gpe and api.Open and input.KeyCode == Enum.KeyCode.Escape then
+			api:SetOpen(false)
+		end
+	end))
+
+	self.Modals = self.Modals or {}
+	table.insert(self.Modals, api)
+	return api
+end
+
 function Window:SetVisible(state)
 	self.Visible = state
 	if state then
@@ -2249,6 +2454,7 @@ function Window:SetVisible(state)
 		Tween(self.Scale, { Scale = self.BaseScale }, EASE_FAST)
 	else
 		self:CloseFloating()
+		for _, modal in ipairs(self.Modals or {}) do modal:SetOpen(false) end
 		Tween(self.Scale, { Scale = self.BaseScale * 0.97 }, EASE_FAST).Completed:Once(function()
 			if not self.Visible then self.Main.Visible = false end
 		end)
@@ -2378,7 +2584,7 @@ function Library:Window(opts)
 		Parent = shell,
 	})
 
-	local footer, footerLine
+	local footer, footerLine, footerLeft
 	if footerHeight > 0 then
 		footerLine = New("Frame", {
 			Size = UDim2.new(1, 0, 0, 1),
@@ -2396,12 +2602,22 @@ function Library:Window(opts)
 		local fList = List(footer, 16, Enum.FillDirection.Horizontal)
 		fList.HorizontalAlignment = Enum.HorizontalAlignment.Right
 		fList.VerticalAlignment = Enum.VerticalAlignment.Center
+
+		footerLeft = New("Frame", {
+			Size = UDim2.new(0, 0, 0, footerHeight - 1),
+			AutomaticSize = Enum.AutomaticSize.X,
+			Position = UDim2.new(0, 16, 1, -(footerHeight - 1)),
+			BackgroundTransparency = 1,
+			Parent = main,
+		})
+		local lList = List(footerLeft, 10, Enum.FillDirection.Horizontal)
+		lList.VerticalAlignment = Enum.VerticalAlignment.Center
 	end
 
 	local overlay = New("Frame", {
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
-		ZIndex = 100,
+		ZIndex = 300,
 		Parent = main,
 	})
 	local blocker = New("TextButton", {
@@ -2421,6 +2637,7 @@ function Library:Window(opts)
 		TabBar = tabBar,
 		Body = body,
 		Footer = footer,
+		FooterLeft = footerLeft,
 		Overlay = overlay,
 		Blocker = blocker,
 		Scale = scale,
