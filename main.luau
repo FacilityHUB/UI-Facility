@@ -1936,7 +1936,7 @@ local function CreateSection(window, parent, title, order)
 		Text = "",
 		Parent = frame,
 	})
-	local htitle = Label(header, title, Theme.TextBright, Theme.TextSize, Theme.FontMedium)
+	local htitle = Label(header, title, Theme.TextBright, Theme.TextSize + 1, Theme.FontMedium)
 	htitle.Size = UDim2.new(1, -16, 1, 0)
 	local hchev = Chevron(header, Theme.TextDim)
 	hchev.AnchorPoint = Vector2.new(0, 0.5)
@@ -2166,7 +2166,7 @@ function Window:Tab(name)
 		AutoButtonColor = false,
 		Text = name,
 		TextColor3 = Theme.TextDim,
-		TextSize = Theme.TextSize,
+		TextSize = Theme.TextSize + 1,
 		Font = Theme.Font,
 		LayoutOrder = #self.Tabs + 1,
 		Parent = self.TabBar,
