@@ -5,7 +5,7 @@ return function(Library)
 	local InterfaceManager = {}
 	InterfaceManager.Library = Library
 	InterfaceManager.Folder = "Facility"
-	InterfaceManager.Flags = { "interface_menu_key", "interface_scale" }
+	InterfaceManager.Flags = { "interface_menu_key", "interface_scale", "interface_text_size" }
 
 	function InterfaceManager:SetLibrary(lib)
 		self.Library = lib or Library
@@ -25,7 +25,7 @@ return function(Library)
 	end
 
 	function InterfaceManager:BuildInterfaceSection(tab, column)
-		self.Settings = self.Settings or { MenuKey = "RightShift", Scale = 100 }
+		self.Settings = self.Settings or { MenuKey = "RightShift", Scale = 100, TextSize = Library.Theme.TextSize }
 
 		local section = tab:Section("interface", column or 1)
 		local window = self:GetWindow()
@@ -54,6 +54,18 @@ return function(Library)
 			end,
 		})
 
+		local textSize = section:Slider({
+			Text = "text size",
+			Flag = "interface_text_size",
+			Min = 11,
+			Max = 17,
+			Default = self.Settings.TextSize,
+			Callback = function(v)
+				self.Settings.TextSize = v
+				self.Library:SetTextSize(v)
+			end,
+		})
+
 		section:Button({
 			Text = "unload",
 			Callback = function() self.Library:Destroy() end,
@@ -61,6 +73,7 @@ return function(Library)
 
 		menuKey:Set(self.Settings.MenuKey)
 		scale:Set(self.Settings.Scale)
+		textSize:Set(self.Settings.TextSize)
 
 		self.Section = section
 		return section
