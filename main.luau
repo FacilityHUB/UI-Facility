@@ -146,7 +146,7 @@ function Library:OnRepaint(callback)
 	return callback
 end
 Library.ThemeAlpha = ThemeAlpha
-Library.Version = "2026.09.02-dialog"
+Library.Version = "2026.09.02-dialog-2"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -811,10 +811,12 @@ function Elements:Input(opts)
 	return api
 end
 
-local function MakeHint(owner, parent, text)
+local function MakeHint(owner, parent, text, order)
 	local mark = Label(parent, "?", Theme.TextDim, 12)
 	mark.Size = UDim2.fromOffset(10, 18)
 	mark.TextXAlignment = Enum.TextXAlignment.Center
+	mark.LayoutOrder = order or 2
+	mark.Name = "Hint"
 
 	local window = owner and owner.Window
 	local tip
@@ -906,7 +908,8 @@ function Elements:Toggle(opts)
 	text.Size = UDim2.fromOffset(0, 18)
 	text.AutomaticSize = Enum.AutomaticSize.X
 	text.Position = UDim2.fromOffset(0, 0)
-	if opts.Hint then MakeHint(self, left, opts.Hint) end
+	text.LayoutOrder = 1
+	if opts.Hint then MakeHint(self, left, opts.Hint, 2) end
 
 	local right = New("Frame", {
 		Size = UDim2.new(0, 0, 1, 0),
