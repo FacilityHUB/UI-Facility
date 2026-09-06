@@ -131,7 +131,7 @@ function Library:OnRepaint(callback)
 	return callback
 end
 Library.ThemeAlpha = ThemeAlpha
-Library.Version = "2026.09.01-hotkeys-4"
+Library.Version = "2026.09.01-panels"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -3014,6 +3014,129 @@ function Library:SetToggleKey(key)
 	return self.ToggleKey or self.ToggleInput
 end
 
+Library.Panels = {}
+
+function Library:Panel(opts)
+	opts = opts or {}
+
+	local gui = New("ScreenGui", {
+		Name = opts.Name or "FacilityPanel",
+		ResetOnSpawn = false,
+		IgnoreGuiInset = true,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		DisplayOrder = opts.DisplayOrder or 997,
+	})
+	ParentGui(gui)
+
+	local frame = New("Frame", {
+		Size = opts.Height
+			and UDim2.fromOffset(opts.Width or 180, opts.Height)
+			or UDim2.new(0, opts.Width or 180, 0, 0),
+		AutomaticSize = (not opts.Height) and Enum.AutomaticSize.Y or Enum.AutomaticSize.None,
+		Position = opts.Position or UDim2.fromOffset(18, 90),
+		BackgroundColor3 = Theme.Section,
+		BorderSizePixel = 0,
+		Active = true,
+		Parent = gui,
+	})
+	Corner(frame, 8)
+	Stroke(frame, Theme.SectionBorder)
+
+	local stack = New("Frame", {
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundTransparency = 1,
+		Parent = frame,
+	})
+	List(stack, 0)
+
+	if opts.Title then
+		local header = New("Frame", {
+			Size = UDim2.new(1, 0, 0, 32),
+			BackgroundTransparency = 1,
+			Parent = stack,
+		})
+		Pad(header, 0, 11, 0, 11)
+
+		local icon = AttachIcon(header, opts.Icon, Theme.TextBright, 14)
+		if icon then
+			icon.AnchorPoint = Vector2.new(0, 0.5)
+			icon.Position = UDim2.new(0, 0, 0.5, 0)
+		end
+		local inset = icon and 20 or 0
+		local title = Label(header, opts.Title, Theme.TextBright, Theme.TextSize, Theme.FontMedium)
+		title.Position = UDim2.fromOffset(inset, 0)
+		title.Size = UDim2.new(1, -inset, 1, 0)
+
+		New("Frame", {
+			Size = UDim2.new(1, 0, 0, 1),
+			BackgroundColor3 = Theme.BorderSoft,
+			BorderSizePixel = 0,
+			LayoutOrder = 2,
+			Parent = stack,
+		})
+	end
+
+	local body = New("Frame", {
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundTransparency = 1,
+		LayoutOrder = 3,
+		Parent = stack,
+	})
+	Pad(body, opts.Title and 9 or 11, 11, 11, 11)
+	List(body, 8)
+
+	local api = {
+		Gui = gui,
+		Frame = frame,
+		Content = NewContainer(self, body),
+	}
+
+	function api:SetVisible(state)
+		gui.Enabled = state and true or false
+	end
+
+	function api:SetPosition(position)
+		frame.Position = position
+	end
+
+	function api:Destroy()
+		gui:Destroy()
+		for index, panel in ipairs(Library.Panels) do
+			if panel == api then table.remove(Library.Panels, index) break end
+		end
+	end
+
+	if opts.Draggable ~= false then
+		local origin, startPos, moveConn, endConn
+		Track(frame.InputBegan:Connect(function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1
+				and input.UserInputType ~= Enum.UserInputType.Touch then return end
+			origin = input.Position
+			startPos = frame.Position
+			moveConn = UserInputService.InputChanged:Connect(function(move)
+				if move.UserInputType ~= Enum.UserInputType.MouseMovement
+					and move.UserInputType ~= Enum.UserInputType.Touch then return end
+				local delta = move.Position - origin
+				frame.Position = UDim2.new(
+					startPos.X.Scale, startPos.X.Offset + delta.X,
+					startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+			end)
+			endConn = UserInputService.InputEnded:Connect(function(ended)
+				if ended.UserInputType ~= input.UserInputType then return end
+				if moveConn then moveConn:Disconnect() moveConn = nil end
+				if endConn then endConn:Disconnect() endConn = nil end
+			end)
+		end))
+	end
+
+	if opts.Visible == false then api:SetVisible(false) end
+
+	table.insert(self.Panels, api)
+	return api
+end
+
 Library.HotkeyEntries = {}
 Library.HotkeysEnabled = false
 
@@ -3276,6 +3399,10 @@ function Library:Destroy()
 	if self.NotifyGui then self.NotifyGui:Destroy() self.NotifyGui = nil end
 	if self.MobileGui then self.MobileGui:Destroy() self.MobileGui = nil self.MobileButton = nil end
 	if self.HotkeyGui then self.HotkeyGui:Destroy() self.HotkeyGui = nil self.HotkeyPanel = nil end
+	for index = #self.Panels, 1, -1 do
+		pcall(function() self.Panels[index].Gui:Destroy() end)
+		self.Panels[index] = nil
+	end
 	table.clear(self.HotkeyEntries)
 	table.clear(self.Registry)
 	table.clear(self.Flags)
