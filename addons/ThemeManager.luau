@@ -172,8 +172,6 @@ return function(Library)
 			return HttpService:JSONEncode({
 				Preset = self.Current,
 				Colors = colors,
-				Acrylic = self.Library.AcrylicEnabled == true,
-				Transparency = self.Library.TransparencyEnabled == true,
 			})
 		end)
 		if ok then self.Library.FileSystem:Write(self:Path(), encoded) end
@@ -187,8 +185,6 @@ return function(Library)
 		if not ok or type(data) ~= "table" then return false end
 
 		if data.Preset then self:Apply(data.Preset) end
-		if data.Acrylic ~= nil then self.Library:SetAcrylic(data.Acrylic) end
-		if data.Transparency ~= nil then self.Library:SetTransparency(data.Transparency) end
 		for key, hex in pairs(data.Colors or {}) do
 			local color, alpha = fromHex(hex)
 			if color and Theme[key] ~= nil then
@@ -212,6 +208,8 @@ return function(Library)
 		local content = modal.Content
 		local pickers = {}
 		local presetBox
+		local snapshot, snapshotAlphas, snapshotPreset
+		local dirty = false
 
 		local function syncPickers()
 			for key, picker in pairs(pickers) do
@@ -219,30 +217,28 @@ return function(Library)
 			end
 		end
 
-		content:Split({
-			function(left)
-				left:Toggle({
-					Text = "acrylic",
-					Flag = false,
-					Default = self.Library.AcrylicEnabled == true,
-					Callback = function(state)
-						self.Library:SetAcrylic(state)
-						if self.AutoSave then self:Save() end
-					end,
-				})
-			end,
-			function(right)
-				right:Toggle({
-					Text = "transparency",
-					Flag = false,
-					Default = self.Library.TransparencyEnabled == true,
-					Callback = function(state)
-						self.Library:SetTransparency(state)
-						if self.AutoSave then self:Save() end
-					end,
-				})
-			end,
-		})
+		local function takeSnapshot()
+			snapshot, snapshotAlphas = {}, {}
+			for _, entry in ipairs(self.Keys) do
+				snapshot[entry[1]] = Theme[entry[1]]
+				snapshotAlphas[entry[1]] = alphas[entry[1]] or 1
+			end
+			snapshotPreset = self.Current
+			dirty = false
+		end
+
+		local function restoreSnapshot()
+			if not snapshot then return end
+			for key, color in pairs(snapshot) do
+				Theme[key] = color
+				alphas[key] = snapshotAlphas[key]
+			end
+			self.Current = snapshotPreset
+			self.Library:Repaint()
+			syncPickers()
+			if presetBox and snapshotPreset then presetBox:Set(snapshotPreset, true) end
+			dirty = false
+		end
 
 		presetBox = content:Dropdown({
 			Text = "preset",
@@ -251,7 +247,10 @@ return function(Library)
 			Default = self.Current,
 			Search = false,
 			Callback = function(name)
-				if self:Apply(name) then syncPickers() end
+				if self:Apply(name) then
+					syncPickers()
+					dirty = true
+				end
 			end,
 		})
 
@@ -266,6 +265,7 @@ return function(Library)
 				DefaultAlpha = alphas[key] or 1,
 				Callback = function(color, alpha)
 					self.Library:SetColor(key, color, alpha)
+					dirty = true
 					if key == "Accent" then
 						self:SetAccent(color)
 						syncPickers()
@@ -289,10 +289,30 @@ return function(Library)
 				self.Library:Repaint()
 				syncPickers()
 				if presetBox then presetBox:Set("facility", true) end
+				dirty = true
 			end,
 		})
 
+		modal.OnClose = function()
+			if not dirty or self.AutoSave then
+				dirty = false
+				return
+			end
+			window:Confirm({
+				Title = "theme",
+				Text = "Save the colour changes?",
+				Confirm = "save",
+				Cancel = "discard",
+				OnConfirm = function()
+					self:Save()
+					dirty = false
+				end,
+				OnCancel = restoreSnapshot,
+			})
+		end
+
 		window:IconAction("paintbrush", function()
+			if not modal.Open then takeSnapshot() end
 			modal:Toggle()
 		end)
 
