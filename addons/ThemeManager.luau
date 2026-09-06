@@ -104,43 +104,106 @@ return function(Library)
 		return true
 	end
 
-	function ThemeManager:BuildThemeSection(tab, column)
-		local section = tab:Section("theme", column or 1)
+	ThemeManager.Keys = {
+		{ "Accent", "accent" },
+		{ "AccentSoft", "accent hover" },
+		{ "AccentDim", "accent dim" },
+		{ "Window", "window bg" },
+		{ "WindowBorder", "window border" },
+		{ "TopBar", "topbar bg" },
+		{ "Section", "card bg" },
+		{ "SectionBorder", "card border" },
+		{ "Group", "group bg" },
+		{ "GroupBorder", "group border" },
+		{ "Field", "control bg" },
+		{ "FieldHover", "control hover" },
+		{ "Border", "control border" },
+		{ "BorderSoft", "divider" },
+		{ "PopupBg", "popup bg" },
+		{ "PopupBorder", "popup border" },
+		{ "Track", "slider track" },
+		{ "Text", "text" },
+		{ "TextDim", "text dim" },
+		{ "TextBright", "text bright" },
+		{ "TextMarked", "text warning" },
+		{ "TextCode", "text success" },
+		{ "Danger", "text danger" },
+	}
 
-		local picker
-		local preset = section:Dropdown({
+	function ThemeManager:Mount(window)
+		window = window or self.Library.Windows[1]
+		if not window then return nil end
+
+		local defaults = {}
+		for _, entry in ipairs(self.Keys) do
+			defaults[entry[1]] = Theme[entry[1]]
+		end
+
+		local modal = window:Modal({ Title = "theme", Width = 300, Height = 0.82 })
+		local content = modal.Content
+		local pickers = {}
+		local presetBox
+
+		local function syncPickers()
+			for key, picker in pairs(pickers) do
+				picker:Set(Theme[key], nil, true)
+			end
+		end
+
+		presetBox = content:Dropdown({
 			Text = "preset",
 			Flag = "theme_preset",
 			Options = self:Names(),
 			Default = self.Current,
 			Callback = function(name)
-				if self:Apply(name) and picker then
-					picker:Set(Theme.Accent, nil, true)
-				end
+				if self:Apply(name) then syncPickers() end
 			end,
 		})
 
-		picker = section:ColorPicker({
-			Text = "accent",
-			Flag = "theme_accent",
-			Alpha = false,
-			Default = Theme.Accent,
-			Callback = function(color)
-				self:SetAccent(color)
-			end,
-		})
+		content:Divider()
 
-		section:Button({
-			Text = "reset theme",
+		for _, entry in ipairs(self.Keys) do
+			local key, label = entry[1], entry[2]
+			pickers[key] = content:ColorPicker({
+				Text = label,
+				Flag = false,
+				Alpha = false,
+				Default = Theme[key],
+				Callback = function(color)
+					Theme[key] = color
+					if key == "Accent" then
+						self:SetAccent(color)
+						syncPickers()
+					else
+						self.Library:Repaint()
+						if self.AutoSave then self:Save() end
+					end
+				end,
+			})
+		end
+
+		content:Divider()
+
+		content:Button({
+			Text = "reset colors",
 			Callback = function()
-				self:Apply("rose")
-				preset:Set("rose", true)
-				picker:Set(Theme.Accent, nil, true)
+				for key, color in pairs(defaults) do
+					Theme[key] = color
+				end
+				self.Current = "rose"
+				self.Library:Repaint()
+				syncPickers()
+				if presetBox then presetBox:Set("rose", true) end
 			end,
 		})
 
-		self.Section = section
-		return section
+		window:IconAction("paintbrush", function()
+			modal:Toggle()
+		end)
+
+		self.Modal = modal
+		self.Pickers = pickers
+		return modal
 	end
 
 	return ThemeManager
