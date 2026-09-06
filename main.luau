@@ -131,7 +131,7 @@ function Library:OnRepaint(callback)
 	return callback
 end
 Library.ThemeAlpha = ThemeAlpha
-Library.Version = "2026.09.01-hotkeys-2"
+Library.Version = "2026.09.01-hotkeys-3"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -3068,11 +3068,19 @@ function Library:CreateHotkeyPanel(opts)
 	title.Position = UDim2.fromOffset(inset, 0)
 	title.Size = UDim2.new(1, -inset, 1, 0)
 
+	New("Frame", {
+		Size = UDim2.new(1, 0, 0, 1),
+		BackgroundColor3 = Theme.BorderSoft,
+		BorderSizePixel = 0,
+		LayoutOrder = 2,
+		Parent = inner,
+	})
+
 	local rows = New("Frame", {
 		Size = UDim2.new(1, 0, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
-		LayoutOrder = 2,
+		LayoutOrder = 3,
 		Parent = inner,
 	})
 	List(rows, 4)
