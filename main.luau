@@ -45,7 +45,7 @@ local Theme = {
 	Field         = Color3.fromRGB(40, 40, 44),
 	FieldHover    = Color3.fromRGB(48, 48, 52),
 	Border        = Color3.fromRGB(60, 60, 65),
-	BorderSoft    = Color3.fromRGB(46, 46, 50),
+	BorderSoft    = Color3.fromRGB(45, 45, 49),
 	PopupBg       = Color3.fromRGB(38, 38, 42),
 	PopupBorder   = Color3.fromRGB(62, 62, 67),
 	Track         = Color3.fromRGB(58, 58, 62),
@@ -96,6 +96,7 @@ Library.AddonPaths = {
 	ThemeManager = "addons/ThemeManager.luau",
 }
 Library.Addons = {}
+Library.Painted = Painted
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -134,6 +135,13 @@ function Library:LoadAddon(name)
 	end
 	self.Addons[name] = module
 	return module
+end
+
+function Library:SetColor(key, color)
+	if typeof(color) ~= "Color3" or Theme[key] == nil then return false end
+	Theme[key] = color
+	self:Repaint()
+	return true
 end
 
 function Library:Repaint()
@@ -2410,7 +2418,7 @@ function Window:Modal(opts)
 			root.Visible = true
 			scrim.BackgroundTransparency = 1
 			cardScale.Scale = 0.96
-			Tween(scrim, { BackgroundTransparency = opts.Dim or 0.45 })
+			Tween(scrim, { BackgroundTransparency = opts.Dim or 0.25 })
 			Tween(cardScale, { Scale = 1 })
 			setBlur(true)
 		else
