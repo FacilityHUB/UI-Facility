@@ -16,15 +16,16 @@ return function(Library)
 		return Color3.fromHSV(h, math.clamp(s * saturation, 0, 1), math.clamp(v * value, 0, 1))
 	end
 
-	local function toHex(color)
-		return string.format("#%02X%02X%02X",
+	local function toHex(color, alpha)
+		return string.format("#%02X%02X%02X%02X",
 			math.floor(color.R * 255 + 0.5),
 			math.floor(color.G * 255 + 0.5),
-			math.floor(color.B * 255 + 0.5))
+			math.floor(color.B * 255 + 0.5),
+			math.floor(math.clamp(alpha or 1, 0, 1) * 255 + 0.5))
 	end
 
 	local function fromHex(text)
-		if typeof(text) == "Color3" then return text end
+		if typeof(text) == "Color3" then return text, 1 end
 		if type(text) ~= "string" then return nil end
 		local hex = string.gsub(string.gsub(text, "#", ""), "%s", "")
 		if #hex < 6 then return nil end
@@ -32,7 +33,9 @@ return function(Library)
 		local g = tonumber(string.sub(hex, 3, 4), 16)
 		local b = tonumber(string.sub(hex, 5, 6), 16)
 		if not r or not g or not b then return nil end
-		return Color3.fromRGB(r, g, b)
+		local a = 255
+		if #hex >= 8 then a = tonumber(string.sub(hex, 7, 8), 16) or 255 end
+		return Color3.fromRGB(r, g, b), a / 255
 	end
 
 	function ThemeManager:SetLibrary(lib)
@@ -60,9 +63,10 @@ return function(Library)
 	end
 
 	function ThemeManager:Save()
+		local alphas = self.Library.ThemeAlpha or {}
 		local colors = {}
 		for _, entry in ipairs(self.Keys) do
-			colors[entry[1]] = toHex(Theme[entry[1]])
+			colors[entry[1]] = toHex(Theme[entry[1]], alphas[entry[1]])
 		end
 		local ok, encoded = pcall(function()
 			return HttpService:JSONEncode({ Colors = colors })
@@ -77,10 +81,11 @@ return function(Library)
 		local ok, data = pcall(function() return HttpService:JSONDecode(raw) end)
 		if not ok or type(data) ~= "table" then return false end
 		for key, hex in pairs(data.Colors or {}) do
-			local color = fromHex(hex)
-			if color and Theme[key] ~= nil then Theme[key] = color end
+			local color, alpha = fromHex(hex)
+			if color and Theme[key] ~= nil then
+				self.Library:SetColor(key, color, alpha)
+			end
 		end
-		self.Library:Repaint()
 		return true
 	end
 
@@ -114,6 +119,7 @@ return function(Library)
 		window = window or self.Library.Windows[1]
 		if not window then return nil end
 
+		local alphas = self.Library.ThemeAlpha or {}
 		local defaults = {}
 		for _, entry in ipairs(self.Keys) do
 			defaults[entry[1]] = Theme[entry[1]]
@@ -125,7 +131,7 @@ return function(Library)
 
 		local function syncPickers()
 			for key, picker in pairs(pickers) do
-				picker:Set(Theme[key], nil, true)
+				picker:Set(Theme[key], alphas[key] or 1, true)
 			end
 		end
 
@@ -136,16 +142,15 @@ return function(Library)
 			pickers[key] = content:ColorPicker({
 				Text = label,
 				Flag = false,
-				Alpha = false,
 				Default = Theme[key],
-				Callback = function(color)
-					Theme[key] = color
+				DefaultAlpha = alphas[key] or 1,
+				Callback = function(color, alpha)
+					self.Library:SetColor(key, color, alpha)
 					if key == "Accent" then
 						self:SetAccent(color)
 						syncPickers()
-					else
-						self.Library:Repaint()
-						if self.AutoSave then self:Save() end
+					elseif self.AutoSave then
+						self:Save()
 					end
 				end,
 			})
@@ -158,6 +163,7 @@ return function(Library)
 			Callback = function()
 				for key, color in pairs(defaults) do
 					Theme[key] = color
+					alphas[key] = 1
 				end
 				self.Library:Repaint()
 				syncPickers()
