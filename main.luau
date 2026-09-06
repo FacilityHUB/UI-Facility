@@ -146,7 +146,7 @@ function Library:OnRepaint(callback)
 	return callback
 end
 Library.ThemeAlpha = ThemeAlpha
-Library.Version = "2026.09.02-dialog-2"
+Library.Version = "2026.09.02-labels"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -521,6 +521,13 @@ local function Disableable(api, parts, opts)
 	return api
 end
 
+local function LabelColor(opts, fallback)
+	if typeof(opts.Color) == "Color3" then return opts.Color, true end
+	local styled = StyleColor(opts.Style, nil)
+	if styled then return styled, true end
+	return fallback, false
+end
+
 local function FlagOf(opts)
 	local flag = opts.Flag
 	if flag == nil then flag = opts.Text end
@@ -674,7 +681,7 @@ local function MakeButton(parent, opts, size, order)
 	})
 	Corner(btn, 5)
 	Stroke(btn, Theme.Border)
-	local text = Label(btn, opts.Text or "button", Theme.TextBright)
+	local text = Label(btn, opts.Text or "button", (LabelColor(opts, Theme.TextBright)))
 	text.Size = UDim2.fromScale(1, 1)
 	text.TextXAlignment = Enum.TextXAlignment.Center
 	text.TextTruncate = Enum.TextTruncate.AtEnd
@@ -753,7 +760,7 @@ function Elements:Input(opts)
 	})
 	List(block, 5)
 	if opts.Text then
-		local cap = Label(block, opts.Text, Theme.Text)
+		local cap = Label(block, opts.Text, (LabelColor(opts, Theme.Text)))
 		cap.Size = UDim2.new(1, 0, 0, 15)
 	end
 	local field = New("Frame", {
@@ -892,7 +899,8 @@ function Elements:Toggle(opts)
 	Corner(box, 3)
 	local boxStroke = Stroke(box, Theme.Border)
 
-	local text = Label(row, opts.Text or "toggle", Theme.Text)
+	local labelColor, customLabel = LabelColor(opts, Theme.Text)
+	local text = Label(row, opts.Text or "toggle", labelColor)
 	text.Position = UDim2.fromOffset(21, 0)
 	text.Size = UDim2.new(1, -21, 1, 0)
 
@@ -958,9 +966,11 @@ function Elements:Toggle(opts)
 		api:Set(not state)
 	end))
 	Track(hit.MouseEnter:Connect(function()
+		if customLabel then return end
 		Tween(text, { TextColor3 = Theme.TextBright }, EASE_FAST)
 	end))
 	Track(hit.MouseLeave:Connect(function()
+		if customLabel then return end
 		Tween(text, { TextColor3 = Theme.Text }, EASE_FAST)
 	end))
 
@@ -1149,7 +1159,7 @@ function Elements:Dropdown(opts)
 
 	local caption
 	if opts.Text then
-		caption = Label(block, opts.Text, Theme.Text)
+		caption = Label(block, opts.Text, (LabelColor(opts, Theme.Text)))
 		caption.Size = UDim2.new(1, 0, 0, 15)
 	end
 
@@ -1396,7 +1406,7 @@ function Elements:Slider(opts)
 	local headList = List(head, 8, Enum.FillDirection.Horizontal)
 	headList.VerticalAlignment = Enum.VerticalAlignment.Center
 
-	local name = Label(head, opts.Text or "slider", Theme.Text)
+	local name = Label(head, opts.Text or "slider", (LabelColor(opts, Theme.Text)))
 	name.Size = UDim2.fromOffset(0, 16)
 	name.AutomaticSize = Enum.AutomaticSize.X
 
@@ -1793,7 +1803,7 @@ function Elements:ColorPicker(opts)
 		BackgroundTransparency = 1,
 		Parent = self.Container,
 	})
-	local name = Label(row, opts.Text or "color", Theme.Text)
+	local name = Label(row, opts.Text or "color", (LabelColor(opts, Theme.Text)))
 	name.Size = UDim2.new(1, -36, 1, 0)
 
 	local swatch = ColorSwatch(row, {
@@ -1821,7 +1831,7 @@ function Elements:Keybind(opts)
 		BackgroundTransparency = 1,
 		Parent = self.Container,
 	})
-	local name = Label(row, opts.Text or "keybind", Theme.Text)
+	local name = Label(row, opts.Text or "keybind", (LabelColor(opts, Theme.Text)))
 	name.Size = UDim2.new(1, -80, 1, 0)
 
 	local pill = New("TextButton", {
