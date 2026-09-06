@@ -3118,6 +3118,10 @@ function Library:BuildFolders(folder)
 end
 
 Library.FileSystem = FileSystem
+
+if getgenv then
+	pcall(function() getgenv().Facility = Library end)
+end
 Library.SaveManager = Library:LoadAddon("SaveManager")
 Library.InterfaceManager = Library:LoadAddon("InterfaceManager")
 Library.ThemeManager = Library:LoadAddon("ThemeManager")
