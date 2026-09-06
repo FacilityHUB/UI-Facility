@@ -131,7 +131,7 @@ function Library:OnRepaint(callback)
 	return callback
 end
 Library.ThemeAlpha = ThemeAlpha
-Library.Version = "2026.08.31-confirm"
+Library.Version = "2026.09.01-hotkeys-2"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -201,6 +201,8 @@ function Library:Repaint()
 		end)
 		if not ok then table.remove(Painted, i) end
 	end
+
+	self:RefreshHotkeys()
 
 	for i = #self.RepaintHooks, 1, -1 do
 		local ok = pcall(self.RepaintHooks[i])
@@ -873,6 +875,7 @@ function Elements:Toggle(opts)
 			Library:MarkDirty(flag)
 		end
 		render(true)
+		Library:RefreshHotkeys()
 		if not silent and opts.Callback then task.spawn(opts.Callback, state) end
 	end
 
@@ -920,8 +923,18 @@ function Elements:Toggle(opts)
 				Library.Flags[bindFlag] = key or ""
 				Library:MarkDirty(bindFlag)
 			end
+			Library:RefreshHotkeys()
 		end
 		refresh()
+
+		Library:RegisterHotkey(function()
+			return {
+				Label = opts.Text or "toggle",
+				Key = key,
+				Active = state,
+				Visible = key ~= nil,
+			}
+		end)
 
 		Library:OnRepaint(refresh)
 
@@ -1747,6 +1760,10 @@ function Elements:Keybind(opts)
 
 	local listening = false
 	local held = false
+	local active = opts.Default == true
+	local mode = string.lower(opts.Mode or "press")
+	local isToggle = mode == "toggle"
+
 	local function refresh()
 		if listening then
 			pl.Text = 'key: <font color="' .. AccentHex() .. '">...</font>'
@@ -1763,6 +1780,7 @@ function Elements:Keybind(opts)
 			Library.Flags[flag] = key or ""
 			Library:MarkDirty(flag)
 		end
+		Library:RefreshHotkeys()
 		if opts.OnChanged then task.spawn(opts.OnChanged, key) end
 	end
 
@@ -1804,23 +1822,29 @@ function Elements:Keybind(opts)
 			return
 		end
 		if gpe or not key or n ~= key then return end
-		if opts.Mode == "hold" then
+		if isToggle then
+			active = not active
+			api.Active = active
+			Library:RefreshHotkeys()
+			if opts.Callback then task.spawn(opts.Callback, active) end
+		else
 			held = true
+			Library:RefreshHotkeys()
 			if opts.Callback then task.spawn(opts.Callback, true) end
-		elseif opts.Callback then
-			task.spawn(opts.Callback, key)
 		end
 	end))
 	Track(UserInputService.InputEnded:Connect(function(input)
-		if opts.Mode ~= "hold" or not held then return end
+		if isToggle or not held then return end
 		if key and KeyName(input) == key then
 			held = false
+			Library:RefreshHotkeys()
 			if opts.Callback then task.spawn(opts.Callback, false) end
 		end
 	end))
 
 	local api = {
 		Instance = row,
+		Active = active,
 		Get = function() return key or "" end,
 		Set = function(_, k)
 			key = (k ~= "" and k) or nil
@@ -1828,6 +1852,15 @@ function Elements:Keybind(opts)
 			apply()
 		end,
 	}
+
+	Library:RegisterHotkey(function()
+		return {
+			Label = opts.Text or "keybind",
+			Key = key,
+			Active = isToggle and active or held,
+			Visible = key ~= nil and (isToggle or held),
+		}
+	end)
 
 	Library:OnRepaint(refresh)
 
@@ -2980,6 +3013,144 @@ function Library:SetToggleKey(key)
 	return self.ToggleKey or self.ToggleInput
 end
 
+Library.HotkeyEntries = {}
+Library.HotkeysEnabled = false
+
+function Library:RegisterHotkey(getter)
+	table.insert(self.HotkeyEntries, getter)
+	self:RefreshHotkeys()
+	return getter
+end
+
+function Library:CreateHotkeyPanel(opts)
+	if self.HotkeyGui then return self.HotkeyPanel end
+	opts = opts or {}
+
+	local gui = New("ScreenGui", {
+		Name = "FacilityHotkeys",
+		ResetOnSpawn = false,
+		IgnoreGuiInset = true,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		DisplayOrder = 998,
+		Enabled = false,
+	})
+	ParentGui(gui)
+
+	local panel = New("Frame", {
+		Size = UDim2.fromOffset(opts.Width or 180, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		Position = opts.Position or UDim2.fromOffset(18, 90),
+		BackgroundColor3 = Theme.Section,
+		BorderSizePixel = 0,
+		Active = true,
+		Parent = gui,
+	})
+	Corner(panel, 8)
+	Stroke(panel, Theme.SectionBorder)
+	Pad(panel, 9, 11)
+
+	local inner = New("Frame", {
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundTransparency = 1,
+		Parent = panel,
+	})
+	List(inner, 6)
+
+	local header = New("Frame", {
+		Size = UDim2.new(1, 0, 0, 16),
+		BackgroundTransparency = 1,
+		Parent = inner,
+	})
+	local icon = AttachIcon(header, opts.Icon or "keyboard", Theme.TextBright, 14)
+	local inset = icon and 20 or 0
+	local title = Label(header, opts.Title or "hotkeys", Theme.TextBright, Theme.TextSize, Theme.FontMedium)
+	title.Position = UDim2.fromOffset(inset, 0)
+	title.Size = UDim2.new(1, -inset, 1, 0)
+
+	local rows = New("Frame", {
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundTransparency = 1,
+		LayoutOrder = 2,
+		Parent = inner,
+	})
+	List(rows, 4)
+
+	local origin, startPos, moveConn, endConn
+	Track(panel.InputBegan:Connect(function(input)
+		if input.UserInputType ~= Enum.UserInputType.MouseButton1
+			and input.UserInputType ~= Enum.UserInputType.Touch then return end
+		origin = input.Position
+		startPos = panel.Position
+		moveConn = UserInputService.InputChanged:Connect(function(move)
+			if move.UserInputType ~= Enum.UserInputType.MouseMovement
+				and move.UserInputType ~= Enum.UserInputType.Touch then return end
+			local delta = move.Position - origin
+			panel.Position = UDim2.new(
+				startPos.X.Scale, startPos.X.Offset + delta.X,
+				startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end)
+		endConn = UserInputService.InputEnded:Connect(function(ended)
+			if ended.UserInputType ~= input.UserInputType then return end
+			if moveConn then moveConn:Disconnect() moveConn = nil end
+			if endConn then endConn:Disconnect() endConn = nil end
+		end)
+	end))
+
+	self.HotkeyGui = gui
+	self.HotkeyPanel = panel
+	self.HotkeyRows = rows
+	return panel
+end
+
+function Library:RefreshHotkeys()
+	if not self.HotkeyGui or not self.HotkeysEnabled then return end
+
+	local rows = self.HotkeyRows
+	for _, child in ipairs(rows:GetChildren()) do
+		if child:IsA("Frame") then child:Destroy() end
+	end
+
+	local shown = 0
+	for index = #self.HotkeyEntries, 1, -1 do
+		local ok, data = pcall(self.HotkeyEntries[index])
+		if not ok then
+			table.remove(self.HotkeyEntries, index)
+		elseif type(data) == "table" and data.Visible and data.Key and data.Key ~= "" then
+			shown = shown + 1
+			local color = data.Active and Theme.Accent or Theme.TextDim
+
+			local row = New("Frame", {
+				Size = UDim2.new(1, 0, 0, 16),
+				BackgroundTransparency = 1,
+				LayoutOrder = shown,
+				Parent = rows,
+			})
+
+			local label = Label(row, data.Label or "action", color, Theme.TextSize - 1)
+			label.Size = UDim2.new(1, -52, 1, 0)
+			label.TextTruncate = Enum.TextTruncate.AtEnd
+
+			local key = Label(row, data.Key, color, Theme.TextSize - 1)
+			key.AnchorPoint = Vector2.new(1, 0)
+			key.Position = UDim2.fromScale(1, 0)
+			key.Size = UDim2.fromOffset(50, 16)
+			key.TextXAlignment = Enum.TextXAlignment.Right
+		end
+	end
+
+	self.HotkeyPanel.Visible = shown > 0
+end
+
+function Library:SetHotkeysVisible(state)
+	self.HotkeysEnabled = state and true or false
+	if self.HotkeysEnabled then self:CreateHotkeyPanel() end
+	if self.HotkeyGui then self.HotkeyGui.Enabled = self.HotkeysEnabled end
+	self:RefreshHotkeys()
+	return self.HotkeysEnabled
+end
+
 function Library:ToggleUI(state)
 	if state == nil then state = not self.Open end
 	self.Open = state
@@ -3084,6 +3255,8 @@ function Library:Destroy()
 	table.clear(self.Windows)
 	if self.NotifyGui then self.NotifyGui:Destroy() self.NotifyGui = nil end
 	if self.MobileGui then self.MobileGui:Destroy() self.MobileGui = nil self.MobileButton = nil end
+	if self.HotkeyGui then self.HotkeyGui:Destroy() self.HotkeyGui = nil self.HotkeyPanel = nil end
+	table.clear(self.HotkeyEntries)
 	table.clear(self.Registry)
 	table.clear(self.Flags)
 end
