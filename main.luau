@@ -59,8 +59,7 @@ local Theme = {
 	AccentDim     = Color3.fromRGB(146, 98, 103),
 	Font          = Enum.Font.Gotham,
 	FontMedium    = Enum.Font.GothamMedium,
-	FontBold      = Enum.Font.GothamBold,
-	TextSize      = 14,
+	TextSize      = 13,
 	Radius        = 6,
 	GearIcon      = "rbxassetid://6031280882",
 }
@@ -136,19 +135,6 @@ function Library:LoadAddon(name)
 	return module
 end
 
-function Library:SetTextSize(size)
-	size = math.clamp(math.floor(tonumber(size) or Theme.TextSize), 10, 20)
-	Theme.TextSize = size
-	for i = #Sized, 1, -1 do
-		local entry = Sized[i]
-		local ok = pcall(function()
-			entry[1].TextSize = math.max(size + entry[2], 8)
-		end)
-		if not ok then table.remove(Sized, i) end
-	end
-	return size
-end
-
 function Library:Repaint()
 	IndexTheme()
 	for i = #Painted, 1, -1 do
@@ -218,7 +204,6 @@ local function Track(conn)
 end
 
 local Painted = {}
-local Sized = {}
 local ThemeIndex = {}
 local THEME_ORDER = {
 	"Window", "WindowBorder", "TopBar", "Section", "SectionBorder",
@@ -249,8 +234,6 @@ local function New(class, props, children)
 			if typeof(v) == "Color3" then
 				local key = ThemeIndex[tostring(v)]
 				if key then table.insert(Painted, { inst, k, key }) end
-			elseif k == "TextSize" and type(v) == "number" then
-				table.insert(Sized, { inst, v - Theme.TextSize })
 			end
 		end
 	end
@@ -567,7 +550,7 @@ function Elements:Paragraph(opts)
 
 	local body
 	if opts.Content then
-		body = Label(inner, opts.Content, opts.ContentColor or Theme.TextDim, opts.TextSize or (Theme.TextSize - 1))
+		body = Label(inner, opts.Content, opts.ContentColor or Theme.TextDim, opts.TextSize or 12)
 		body.Size = UDim2.new(1, 0, 0, 0)
 		body.AutomaticSize = Enum.AutomaticSize.Y
 		body.TextWrapped = true
@@ -1940,7 +1923,7 @@ local function CreateSection(window, parent, title, order)
 		Text = "",
 		Parent = frame,
 	})
-	local htitle = Label(header, title, Theme.TextBright, Theme.TextSize, Theme.FontBold)
+	local htitle = Label(header, title, Theme.TextBright, Theme.TextSize, Theme.FontMedium)
 	htitle.Size = UDim2.new(1, -16, 1, 0)
 	local hchev = Chevron(header, Theme.TextDim)
 	hchev.AnchorPoint = Vector2.new(0, 0.5)
@@ -2323,11 +2306,11 @@ function Library:Window(opts)
 	local titleList = List(title, 0, Enum.FillDirection.Horizontal)
 	titleList.VerticalAlignment = Enum.VerticalAlignment.Center
 
-	local titleName = Label(title, opts.Title or "facility", Theme.TextBright, Theme.TextSize + 1, Theme.FontBold)
+	local titleName = Label(title, opts.Title or "facility", Theme.TextBright, 14, Theme.FontMedium)
 	titleName.Size = UDim2.new(0, 0, 1, 0)
 	titleName.AutomaticSize = Enum.AutomaticSize.X
 
-	local titleSuffix = Label(title, opts.Suffix or ".app", Theme.Accent, Theme.TextSize + 1, Theme.FontBold)
+	local titleSuffix = Label(title, opts.Suffix or ".app", Theme.Accent, 14, Theme.FontMedium)
 	titleSuffix.Size = UDim2.new(0, 0, 1, 0)
 	titleSuffix.AutomaticSize = Enum.AutomaticSize.X
 	titleSuffix.LayoutOrder = 2
