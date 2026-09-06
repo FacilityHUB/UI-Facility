@@ -135,6 +135,19 @@ function Library:LoadAddon(name)
 	return module
 end
 
+function Library:SetTextSize(size)
+	size = math.clamp(math.floor(tonumber(size) or Theme.TextSize), 10, 20)
+	Theme.TextSize = size
+	for i = #Sized, 1, -1 do
+		local entry = Sized[i]
+		local ok = pcall(function()
+			entry[1].TextSize = math.max(size + entry[2], 8)
+		end)
+		if not ok then table.remove(Sized, i) end
+	end
+	return size
+end
+
 function Library:Repaint()
 	IndexTheme()
 	for i = #Painted, 1, -1 do
@@ -204,6 +217,7 @@ local function Track(conn)
 end
 
 local Painted = {}
+local Sized = {}
 local ThemeIndex = {}
 local THEME_ORDER = {
 	"Window", "WindowBorder", "TopBar", "Section", "SectionBorder",
@@ -234,6 +248,8 @@ local function New(class, props, children)
 			if typeof(v) == "Color3" then
 				local key = ThemeIndex[tostring(v)]
 				if key then table.insert(Painted, { inst, k, key }) end
+			elseif k == "TextSize" and type(v) == "number" then
+				table.insert(Sized, { inst, v - Theme.TextSize })
 			end
 		end
 	end
