@@ -1,5 +1,5 @@
 -- Facility addon | ThemeManager
--- Presets de couleurs, accent personnalise, recoloration a chaud.
+-- Edition des couleurs de l interface, recoloration a chaud.
 
 return function(Library)
 	local HttpService = game:GetService("HttpService")
@@ -10,17 +10,6 @@ return function(Library)
 	ThemeManager.Folder = "Facility"
 	ThemeManager.Flags = { "theme_preset", "theme_accent" }
 	ThemeManager.AutoSave = false
-	ThemeManager.Current = "rose"
-
-	ThemeManager.Order = { "rose", "blue", "green", "amber", "violet", "mono" }
-	ThemeManager.Presets = {
-		rose   = Color3.fromRGB(232, 161, 168),
-		blue   = Color3.fromRGB(120, 178, 240),
-		green  = Color3.fromRGB(126, 206, 142),
-		amber  = Color3.fromRGB(232, 186, 110),
-		violet = Color3.fromRGB(178, 154, 240),
-		mono   = Color3.fromRGB(196, 196, 204),
-	}
 
 	local function shift(color, saturation, value)
 		local h, s, v = color:ToHSV()
@@ -59,33 +48,24 @@ return function(Library)
 		return self.Folder .. "/settings/theme.json"
 	end
 
-	function ThemeManager:Names()
-		local names = {}
-		for i, name in ipairs(self.Order) do names[i] = name end
-		return names
-	end
-
-	function ThemeManager:SetAccent(color, name)
+	function ThemeManager:SetAccent(color)
 		color = fromHex(color)
 		if not color then return false end
 		Theme.Accent = color
 		Theme.AccentSoft = shift(color, 0.78, 1.08)
 		Theme.AccentDim = shift(color, 0.72, 0.64)
-		self.Current = name or "custom"
 		self.Library:Repaint()
 		if self.AutoSave then self:Save() end
 		return true
 	end
 
-	function ThemeManager:Apply(name)
-		local preset = self.Presets[name]
-		if not preset then return false end
-		return self:SetAccent(preset, name)
-	end
-
 	function ThemeManager:Save()
+		local colors = {}
+		for _, entry in ipairs(self.Keys) do
+			colors[entry[1]] = toHex(Theme[entry[1]])
+		end
 		local ok, encoded = pcall(function()
-			return HttpService:JSONEncode({ Preset = self.Current, Accent = toHex(Theme.Accent) })
+			return HttpService:JSONEncode({ Colors = colors })
 		end)
 		if ok then self.Library.FileSystem:Write(self:Path(), encoded) end
 		return ok
@@ -96,11 +76,11 @@ return function(Library)
 		if not raw then return false end
 		local ok, data = pcall(function() return HttpService:JSONDecode(raw) end)
 		if not ok or type(data) ~= "table" then return false end
-		if data.Accent then
-			self:SetAccent(data.Accent, data.Preset)
-		elseif data.Preset then
-			self:Apply(data.Preset)
+		for key, hex in pairs(data.Colors or {}) do
+			local color = fromHex(hex)
+			if color and Theme[key] ~= nil then Theme[key] = color end
 		end
+		self.Library:Repaint()
 		return true
 	end
 
@@ -142,23 +122,12 @@ return function(Library)
 		local modal = window:Modal({ Title = "theme", Width = 300, Height = 0.82 })
 		local content = modal.Content
 		local pickers = {}
-		local presetBox
 
 		local function syncPickers()
 			for key, picker in pairs(pickers) do
 				picker:Set(Theme[key], nil, true)
 			end
 		end
-
-		presetBox = content:Dropdown({
-			Text = "preset",
-			Flag = "theme_preset",
-			Options = self:Names(),
-			Default = self.Current,
-			Callback = function(name)
-				if self:Apply(name) then syncPickers() end
-			end,
-		})
 
 		content:Divider()
 
@@ -190,10 +159,8 @@ return function(Library)
 				for key, color in pairs(defaults) do
 					Theme[key] = color
 				end
-				self.Current = "rose"
 				self.Library:Repaint()
 				syncPickers()
-				if presetBox then presetBox:Set("rose", true) end
 			end,
 		})
 
