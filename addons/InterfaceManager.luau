@@ -5,7 +5,7 @@ return function(Library)
 	local InterfaceManager = {}
 	InterfaceManager.Library = Library
 	InterfaceManager.Folder = "Facility"
-	InterfaceManager.Flags = { "interface_menu_key", "interface_scale" }
+	InterfaceManager.Flags = { "interface_menu_key", "interface_scale", "interface_hotkeys" }
 
 	function InterfaceManager:SetLibrary(lib)
 		self.Library = lib or Library
@@ -25,7 +25,7 @@ return function(Library)
 	end
 
 	function InterfaceManager:BuildInterfaceSection(tab, column)
-		self.Settings = self.Settings or { MenuKey = "RightShift", Scale = 100 }
+		self.Settings = self.Settings or { MenuKey = "RightShift", Scale = 100, Hotkeys = false }
 
 		local section = tab:Section("interface", column or 1)
 		local window = self:GetWindow()
@@ -54,6 +54,17 @@ return function(Library)
 			end,
 		})
 
+		local hotkeys = section:Toggle({
+			Text = "hotkeys panel",
+			Flag = "interface_hotkeys",
+			Hint = "shows active keybinds on screen",
+			Default = self.Settings.Hotkeys == true,
+			Callback = function(state)
+				self.Settings.Hotkeys = state
+				self.Library:SetHotkeysVisible(state)
+			end,
+		})
+
 		section:Button({
 			Text = "unload",
 			Callback = function() self.Library:Destroy() end,
@@ -61,6 +72,7 @@ return function(Library)
 
 		menuKey:Set(self.Settings.MenuKey)
 		scale:Set(self.Settings.Scale)
+		hotkeys:Set(self.Settings.Hotkeys == true)
 
 		self.Section = section
 		return section
