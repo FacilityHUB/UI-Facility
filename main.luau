@@ -59,7 +59,8 @@ local Theme = {
 	AccentDim     = Color3.fromRGB(146, 98, 103),
 	Font          = Enum.Font.Gotham,
 	FontMedium    = Enum.Font.GothamMedium,
-	TextSize      = 13,
+	FontBold      = Enum.Font.GothamBold,
+	TextSize      = 14,
 	Radius        = 6,
 	GearIcon      = "rbxassetid://6031280882",
 }
@@ -566,7 +567,7 @@ function Elements:Paragraph(opts)
 
 	local body
 	if opts.Content then
-		body = Label(inner, opts.Content, opts.ContentColor or Theme.TextDim, opts.TextSize or 12)
+		body = Label(inner, opts.Content, opts.ContentColor or Theme.TextDim, opts.TextSize or (Theme.TextSize - 1))
 		body.Size = UDim2.new(1, 0, 0, 0)
 		body.AutomaticSize = Enum.AutomaticSize.Y
 		body.TextWrapped = true
@@ -1939,7 +1940,7 @@ local function CreateSection(window, parent, title, order)
 		Text = "",
 		Parent = frame,
 	})
-	local htitle = Label(header, title, Theme.TextBright, Theme.TextSize, Theme.FontMedium)
+	local htitle = Label(header, title, Theme.TextBright, Theme.TextSize, Theme.FontBold)
 	htitle.Size = UDim2.new(1, -16, 1, 0)
 	local hchev = Chevron(header, Theme.TextDim)
 	hchev.AnchorPoint = Vector2.new(0, 0.5)
@@ -2322,11 +2323,11 @@ function Library:Window(opts)
 	local titleList = List(title, 0, Enum.FillDirection.Horizontal)
 	titleList.VerticalAlignment = Enum.VerticalAlignment.Center
 
-	local titleName = Label(title, opts.Title or "facility", Theme.TextBright, 14, Theme.FontMedium)
+	local titleName = Label(title, opts.Title or "facility", Theme.TextBright, Theme.TextSize + 1, Theme.FontBold)
 	titleName.Size = UDim2.new(0, 0, 1, 0)
 	titleName.AutomaticSize = Enum.AutomaticSize.X
 
-	local titleSuffix = Label(title, opts.Suffix or ".app", Theme.Accent, 14, Theme.FontMedium)
+	local titleSuffix = Label(title, opts.Suffix or ".app", Theme.Accent, Theme.TextSize + 1, Theme.FontBold)
 	titleSuffix.Size = UDim2.new(0, 0, 1, 0)
 	titleSuffix.AutomaticSize = Enum.AutomaticSize.X
 	titleSuffix.LayoutOrder = 2
