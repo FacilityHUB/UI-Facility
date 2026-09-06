@@ -153,12 +153,28 @@ return function(Library)
 			{
 				Text = "delete",
 				Callback = function()
-					local ok, result = self:Delete(selected())
-					if ok then
-						refreshList()
-						if autoloadLabel then autoloadLabel:Set("autoload: " .. (self:GetAutoload() or "none")) end
+					local file = selected()
+					if not file then return notify(false, "no config", "") end
+
+					local function remove()
+						local ok, result = self:Delete(file)
+						if ok then
+							refreshList()
+							if autoloadLabel then autoloadLabel:Set("autoload: " .. (self:GetAutoload() or "none")) end
+						end
+						notify(ok, result, "deleted")
 					end
-					notify(ok, result, "deleted")
+
+					local window = self.Library.Windows[1]
+					if not window then return remove() end
+
+					window:Confirm({
+						Title = "delete config",
+						Text = "Delete " .. file .. " permanently?",
+						Confirm = "delete",
+						Cancel = "cancel",
+						OnConfirm = remove,
+					})
 				end,
 			},
 			{ Text = "refresh", Callback = function() refreshList() end },
