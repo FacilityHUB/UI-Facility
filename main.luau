@@ -97,6 +97,7 @@ Library.AddonPaths = {
 }
 Library.Addons = {}
 Library.Painted = Painted
+Library.Version = "2026.08.30-theme"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -145,6 +146,9 @@ function Library:SetColor(key, color)
 end
 
 function Library:Repaint()
+	if #Painted == 0 then
+		warn("Facility | repaint registry is empty, main.luau is probably outdated")
+	end
 	IndexTheme()
 	for i = #Painted, 1, -1 do
 		local entry = Painted[i]
