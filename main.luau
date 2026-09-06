@@ -76,6 +76,13 @@ local EASE      = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirectio
 local EASE_FAST = TweenInfo.new(0.10, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
 local Painted = {}
+local ThemeAlpha = {}
+local ALPHA_PROPS = {
+	BackgroundColor3 = "BackgroundTransparency",
+	ImageColor3 = "ImageTransparency",
+	TextColor3 = "TextTransparency",
+	Color = "Transparency",
+}
 local ThemeIndex = {}
 local THEME_ORDER = {
 	"Window", "WindowBorder", "TopBar", "Section", "SectionBorder",
@@ -117,7 +124,8 @@ Library.AddonPaths = {
 }
 Library.Addons = {}
 Library.Painted = Painted
-Library.Version = "2026.08.30-theme-2"
+Library.ThemeAlpha = ThemeAlpha
+Library.Version = "2026.08.30-theme-3"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -158,9 +166,12 @@ function Library:LoadAddon(name)
 	return module
 end
 
-function Library:SetColor(key, color)
+function Library:SetColor(key, color, alpha)
 	if typeof(color) ~= "Color3" or Theme[key] == nil then return false end
 	Theme[key] = color
+	if alpha ~= nil then
+		ThemeAlpha[key] = math.clamp(alpha, 0, 1)
+	end
 	self:Repaint()
 	return true
 end
@@ -173,7 +184,14 @@ function Library:Repaint()
 	for i = #Painted, 1, -1 do
 		local entry = Painted[i]
 		local ok = pcall(function()
-			entry[1][entry[2]] = Theme[entry[3]]
+			local instance, property, key = entry[1], entry[2], entry[3]
+			instance[property] = Theme[key]
+
+			local alpha = ThemeAlpha[key]
+			local transparency = ALPHA_PROPS[property]
+			if alpha and transparency and instance[transparency] < 1 then
+				instance[transparency] = 1 - alpha
+			end
 		end)
 		if not ok then table.remove(Painted, i) end
 	end
@@ -1533,42 +1551,6 @@ function BuildColorPicker(owner, swatch, opts)
 		Parent = hexField,
 	})
 
-	local tools = New("Frame", {
-		Size = UDim2.new(1, 0, 0, 14),
-		BackgroundTransparency = 1,
-		LayoutOrder = 4,
-		ZIndex = z,
-		Parent = panel.Content,
-	})
-	local toolList = List(tools, 10, Enum.FillDirection.Horizontal)
-	toolList.VerticalAlignment = Enum.VerticalAlignment.Center
-
-	local function ToolButton(text, order)
-		local btn = New("TextButton", {
-			Size = UDim2.new(0, 0, 1, 0),
-			AutomaticSize = Enum.AutomaticSize.X,
-			BackgroundTransparency = 1,
-			AutoButtonColor = false,
-			Text = text,
-			TextColor3 = Theme.TextDim,
-			TextSize = 12,
-			Font = Theme.Font,
-			LayoutOrder = order,
-			ZIndex = z,
-			Parent = tools,
-		})
-		Track(btn.MouseEnter:Connect(function()
-			Tween(btn, { TextColor3 = Theme.Text }, EASE_FAST)
-		end))
-		Track(btn.MouseLeave:Connect(function()
-			Tween(btn, { TextColor3 = Theme.TextDim }, EASE_FAST)
-		end))
-		return btn
-	end
-
-	local copyBtn = ToolButton("copy", 1)
-	local pasteBtn = ToolButton("paste", 2)
-
 	local api = { Instance = swatch, Swatch = swatch, Color = base, Alpha = alpha }
 	local editing = false
 
@@ -1652,19 +1634,6 @@ function BuildColorPicker(owner, swatch, opts)
 		else
 			render()
 		end
-	end))
-
-	Track(copyBtn.Activated:Connect(function()
-		if typeof(setclipboard) == "function" then
-			setclipboard(ToHex(current(), alpha))
-		end
-	end))
-	Track(pasteBtn.Activated:Connect(function()
-		if typeof(getclipboard) ~= "function" then return end
-		local ok, clip = pcall(getclipboard)
-		if not ok then return end
-		local parsed, parsedAlpha = FromHex(clip)
-		if parsed then api:Set(parsed, parsedAlpha) end
 	end))
 
 	Track(swatch.Activated:Connect(function()
