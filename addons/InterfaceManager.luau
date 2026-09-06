@@ -67,7 +67,17 @@ return function(Library)
 
 		section:Button({
 			Text = "unload",
-			Callback = function() self.Library:Destroy() end,
+			Callback = function()
+				local window = self:GetWindow()
+				if not window then return self.Library:Destroy() end
+				window:Confirm({
+					Title = "unload",
+					Text = "Unload the interface? Unsaved changes will be lost.",
+					Confirm = "unload",
+					Cancel = "cancel",
+					OnConfirm = function() self.Library:Destroy() end,
+				})
+			end,
 		})
 
 		menuKey:Set(self.Settings.MenuKey)
