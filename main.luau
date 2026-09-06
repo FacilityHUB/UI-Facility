@@ -114,6 +114,7 @@ Library.Binding = false
 Library.Registry = {}
 Library.Defaults = {}
 Library.NotificationsEnabled = true
+Library.NotificationLimit = 5
 Library.Dirty = false
 Library.BaseUrl = "https://raw.githubusercontent.com/FacilityHUB/UI-Facility/refs/heads/main/"
 Library.AddonPaths = {
@@ -126,12 +127,26 @@ Library.Addons = {}
 Library.Painted = Painted
 Library.RepaintHooks = {}
 
+function Library:SafeCallback(label, callback, ...)
+	if not callback then return end
+	local packed = table.pack(...)
+	task.spawn(function()
+		local ok, err = pcall(callback, table.unpack(packed, 1, packed.n))
+		if ok then return end
+		local message = tostring(err)
+		local _, cut = string.find(message, ":%d+: ")
+		if cut then message = string.sub(message, cut + 1) end
+		warn("Facility | callback error in '" .. tostring(label) .. "': " .. tostring(err))
+		self:Error("callback error", tostring(label) .. " - " .. message, 7)
+	end)
+end
+
 function Library:OnRepaint(callback)
 	table.insert(self.RepaintHooks, callback)
 	return callback
 end
 Library.ThemeAlpha = ThemeAlpha
-Library.Version = "2026.09.01-panels"
+Library.Version = "2026.09.02-disable"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -477,6 +492,35 @@ local function StyleColor(style, fallback)
 	return fallback
 end
 
+local function Disableable(api, parts, opts)
+	api.Enabled = true
+
+	function api:SetEnabled(state)
+		state = state ~= false
+		self.Enabled = state
+		for _, inst in ipairs(parts) do
+			pcall(function()
+				if inst:IsA("UIStroke") then
+					inst.Transparency = state and 0 or 0.7
+				elseif inst:IsA("ImageLabel") or inst:IsA("ImageButton") then
+					inst.ImageTransparency = state and 0 or 0.6
+				else
+					inst.TextTransparency = state and 0 or 0.6
+					if inst:IsA("TextBox") then inst.TextEditable = state end
+				end
+			end)
+		end
+		return self
+	end
+
+	function api:SetDisabled(state)
+		return self:SetEnabled(not state)
+	end
+
+	if opts and opts.Disabled then api:SetEnabled(false) end
+	return api
+end
+
 local function FlagOf(opts)
 	local flag = opts.Flag
 	if flag == nil then flag = opts.Text end
@@ -618,6 +662,7 @@ function Elements:Paragraph(opts)
 end
 
 local function MakeButton(parent, opts, size, order)
+	local state = { Enabled = true }
 	local btn = New("TextButton", {
 		Size = size or UDim2.new(1, 0, 0, 26),
 		BackgroundColor3 = Theme.Field,
@@ -635,13 +680,23 @@ local function MakeButton(parent, opts, size, order)
 	text.TextTruncate = Enum.TextTruncate.AtEnd
 	Hover(btn, btn, "Field", "FieldHover")
 	Track(btn.Activated:Connect(function()
-		if opts.Callback then task.spawn(opts.Callback) end
+		if state.Enabled == false then return end
+		Library:SafeCallback(opts.Text or "button", opts.Callback)
 	end))
-	return btn
+	return btn, state, text
 end
 
 function Elements:Button(opts)
-	return { Instance = MakeButton(self.Container, opts or {}) }
+	opts = opts or {}
+	local btn, state, text = MakeButton(self.Container, opts)
+	local api = Disableable({ Instance = btn }, { text })
+	local baseSetEnabled = api.SetEnabled
+	function api:SetEnabled(value)
+		state.Enabled = value ~= false
+		return baseSetEnabled(self, value)
+	end
+	if opts.Disabled then api:SetEnabled(false) end
+	return api
 end
 
 function Elements:ButtonRow(list)
@@ -725,12 +780,12 @@ function Elements:Input(opts)
 		Parent = field,
 	})
 
-	local api = { Instance = block, Box = box }
+	local api = Disableable({ Instance = block, Box = box }, { box }, opts)
 	function api:Get() return box.Text end
 	function api:Set(value, silent)
 		box.Text = tostring(value or "")
 		if flag then Library.Flags[flag] = box.Text end
-		if not silent and opts.Callback then task.spawn(opts.Callback, box.Text) end
+		if not silent then Library:SafeCallback(opts.Text or "input", opts.Callback, box.Text) end
 	end
 
 	Track(box.Focused:Connect(function()
@@ -742,7 +797,7 @@ function Elements:Input(opts)
 			Library.Flags[flag] = box.Text
 			Library:MarkDirty(flag)
 		end
-		if opts.Callback then task.spawn(opts.Callback, box.Text, enter) end
+		Library:SafeCallback(opts.Text or "input", opts.Callback, box.Text, enter)
 	end))
 
 	if flag then
@@ -876,10 +931,11 @@ function Elements:Toggle(opts)
 		end
 		render(true)
 		Library:RefreshHotkeys()
-		if not silent and opts.Callback then task.spawn(opts.Callback, state) end
+		if not silent then Library:SafeCallback(opts.Text or "toggle", opts.Callback, state) end
 	end
 
 	Track(hit.Activated:Connect(function()
+		if api.Enabled == false then return end
 		api:Set(not state)
 	end))
 	Track(hit.MouseEnter:Connect(function()
@@ -1041,6 +1097,7 @@ function Elements:Toggle(opts)
 		return api
 	end
 
+	Disableable(api, { text, boxStroke }, opts)
 	Library:OnRepaint(function() render(false) end)
 
 	if flag then
@@ -1052,7 +1109,7 @@ function Elements:Toggle(opts)
 		})
 	end
 	render(false)
-	if state and opts.Callback then task.spawn(opts.Callback, state) end
+	if state then Library:SafeCallback(opts.Text or "toggle", opts.Callback, state) end
 	return api
 end
 
@@ -1071,9 +1128,10 @@ function Elements:Dropdown(opts)
 	})
 	local blockList = List(block, 5)
 
+	local caption
 	if opts.Text then
-		local cap = Label(block, opts.Text, Theme.Text)
-		cap.Size = UDim2.new(1, 0, 0, 15)
+		caption = Label(block, opts.Text, Theme.Text)
+		caption.Size = UDim2.new(1, 0, 0, 15)
 	end
 
 	local button = New("TextButton", {
@@ -1221,7 +1279,7 @@ function Elements:Dropdown(opts)
 					self.Window:CloseFloating()
 				end
 				refresh()
-				if opts.Callback then task.spawn(opts.Callback, selected) end
+				Library:SafeCallback(opts.Text or "dropdown", opts.Callback, selected)
 			end))
 		end
 		applyFilter()
@@ -1241,6 +1299,7 @@ function Elements:Dropdown(opts)
 	end
 
 	Track(button.Activated:Connect(function()
+		if api.Enabled == false then return end
 		self.Window:ToggleFloating(panel, button, true)
 	end))
 	Hover(button, button, "Field", "FieldHover")
@@ -1248,7 +1307,7 @@ function Elements:Dropdown(opts)
 	function api:Set(v, silent)
 		selected = v
 		refresh()
-		if not silent and opts.Callback then task.spawn(opts.Callback, selected) end
+		if not silent then Library:SafeCallback(opts.Text or "dropdown", opts.Callback, selected) end
 	end
 
 	function api:Get()
@@ -1264,6 +1323,7 @@ function Elements:Dropdown(opts)
 
 	build()
 	refresh()
+	Disableable(api, { value, caption }, opts)
 
 	Library:OnRepaint(function()
 		refresh()
@@ -1389,7 +1449,7 @@ function Elements:Slider(opts)
 			Library:MarkDirty(flag)
 		end
 		render(v, true)
-		if not silent and opts.Callback then task.spawn(opts.Callback, v) end
+		if not silent then Library:SafeCallback(opts.Text or "slider", opts.Callback, v) end
 	end
 
 	local dragging, moveConn, endConn
@@ -1400,6 +1460,7 @@ function Elements:Slider(opts)
 	end
 
 	Track(hit.InputBegan:Connect(function(input)
+		if api.Enabled == false then return end
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1
 			and input.UserInputType ~= Enum.UserInputType.Touch then return end
 		dragging = true
@@ -1420,6 +1481,8 @@ function Elements:Slider(opts)
 			end
 		end)
 	end))
+
+	Disableable(api, { name, valueLabel }, opts)
 
 	if flag then
 		Library.Flags[flag] = value
@@ -1619,7 +1682,7 @@ function BuildColorPicker(owner, swatch, opts)
 	end
 
 	local function fire()
-		if opts.Callback then task.spawn(opts.Callback, current(), alpha) end
+		Library:SafeCallback(opts.Text or "color picker", opts.Callback, current(), alpha)
 	end
 
 	function api:Set(color, newAlpha, silent)
@@ -1677,9 +1740,11 @@ function BuildColorPicker(owner, swatch, opts)
 	end))
 
 	Track(swatch.Activated:Connect(function()
+		if api.Enabled == false then return end
 		owner.Window:ToggleFloating(panel, swatch)
 	end))
 
+	Disableable(api, {}, opts)
 	Library:OnRepaint(render)
 
 	if flag then
@@ -1782,10 +1847,11 @@ function Elements:Keybind(opts)
 			Library:MarkDirty(flag)
 		end
 		Library:RefreshHotkeys()
-		if opts.OnChanged then task.spawn(opts.OnChanged, key) end
+		Library:SafeCallback(opts.Text or "keybind", opts.OnChanged, key)
 	end
 
 	Track(pill.Activated:Connect(function()
+		if api and api.Enabled == false then return end
 		listening = true
 		Library.Binding = true
 		refresh()
@@ -1823,15 +1889,16 @@ function Elements:Keybind(opts)
 			return
 		end
 		if gpe or not key or n ~= key then return end
+		if api and api.Enabled == false then return end
 		if isToggle then
 			active = not active
 			if api then api.Active = active end
 			Library:RefreshHotkeys()
-			if opts.Callback then task.spawn(opts.Callback, active) end
+			Library:SafeCallback(opts.Text or "keybind", opts.Callback, active)
 		else
 			held = true
 			Library:RefreshHotkeys()
-			if opts.Callback then task.spawn(opts.Callback, true) end
+			Library:SafeCallback(opts.Text or "keybind", opts.Callback, true)
 		end
 	end))
 	Track(UserInputService.InputEnded:Connect(function(input)
@@ -1839,7 +1906,7 @@ function Elements:Keybind(opts)
 		if key and KeyName(input) == key then
 			held = false
 			Library:RefreshHotkeys()
-			if opts.Callback then task.spawn(opts.Callback, false) end
+			Library:SafeCallback(opts.Text or "keybind", opts.Callback, false)
 		end
 	end))
 
@@ -1853,6 +1920,8 @@ function Elements:Keybind(opts)
 			apply()
 		end,
 	}
+
+	Disableable(api, { name, pl }, opts)
 
 	Library:RegisterHotkey(function()
 		return {
@@ -1918,20 +1987,20 @@ function Elements:Search(opts)
 	end))
 	Track(box.FocusLost:Connect(function(enter)
 		Tween(fStroke, { Color = Theme.Border }, EASE_FAST)
-		if opts.Callback then task.spawn(opts.Callback, box.Text, enter) end
+		Library:SafeCallback(opts.Text or "input", opts.Callback, box.Text, enter)
 	end))
 	if opts.Live then
 		Track(box:GetPropertyChangedSignal("Text"):Connect(function()
-			if opts.Callback then task.spawn(opts.Callback, box.Text, false) end
+			Library:SafeCallback(opts.Text or "search", opts.Callback, box.Text, false)
 		end))
 	end
 
-	local api = {
+	local api = Disableable({
 		Instance = row,
 		Box = box,
 		Get = function() return box.Text end,
 		Set = function(_, v) box.Text = tostring(v or "") end,
-	}
+	}, { box, side }, opts)
 	if flag then
 		Library.Flags[flag] = box.Text
 		Library:Register(flag, {
@@ -1939,7 +2008,7 @@ function Elements:Search(opts)
 			Get = function() return box.Text end,
 			Set = function(v)
 				box.Text = tostring(v or "")
-				if opts.Callback then task.spawn(opts.Callback, box.Text, false) end
+				Library:SafeCallback(opts.Text or "search", opts.Callback, box.Text, false)
 			end,
 		})
 	end
@@ -2268,7 +2337,7 @@ function Window:Action(text, callback)
 		Tween(btn, { TextColor3 = Theme.Accent }, EASE_FAST)
 	end))
 	Track(btn.Activated:Connect(function()
-		if callback then task.spawn(callback) end
+		Library:SafeCallback("action", callback)
 	end))
 	return btn
 end
@@ -2317,7 +2386,7 @@ function Window:IconAction(icon, callback, order)
 		Tween(button, { ImageColor3 = Theme.TextDim }, EASE_FAST)
 	end))
 	Track(button.Activated:Connect(function()
-		if callback then task.spawn(callback) end
+		Library:SafeCallback("action", callback)
 	end))
 
 	return button
@@ -2517,7 +2586,7 @@ function Window:Confirm(opts)
 	local function answer(callback)
 		answered = true
 		modal:SetOpen(false)
-		if callback then task.spawn(callback) end
+		Library:SafeCallback("action", callback)
 	end
 
 	content:ButtonRow({
@@ -2905,6 +2974,15 @@ function Library:Notify(opts, text, duration)
 		l.HorizontalAlignment = Enum.HorizontalAlignment.Right
 		self.NotifyGui = gui
 		self.NotifyHolder = holder
+	end
+
+	local limit = self.NotificationLimit or 5
+	local live = {}
+	for _, child in ipairs(self.NotifyHolder:GetChildren()) do
+		if child:IsA("Frame") then table.insert(live, child) end
+	end
+	for index = 1, #live - (limit - 1) do
+		pcall(function() live[index]:Destroy() end)
 	end
 
 	local card = New("Frame", {
