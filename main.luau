@@ -131,7 +131,7 @@ function Library:OnRepaint(callback)
 	return callback
 end
 Library.ThemeAlpha = ThemeAlpha
-Library.Version = "2026.08.31-acrylic"
+Library.Version = "2026.08.31-confirm"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -2315,7 +2315,9 @@ function Window:Modal(opts)
 	local card = New("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.new(0, opts.Width or 340, opts.Height or 0.78, 0),
+		Size = (opts.Height and opts.Height > 1)
+			and UDim2.fromOffset(opts.Width or 340, opts.Height)
+			or UDim2.new(0, opts.Width or 340, opts.Height or 0.78, 0),
 		BackgroundColor3 = Theme.Window,
 		BorderSizePixel = 0,
 		Active = true,
@@ -2436,6 +2438,7 @@ function Window:Modal(opts)
 				if not api.Open then root.Visible = false end
 			end)
 			setBlur(false)
+			if api.OnClose then task.spawn(api.OnClose) end
 		end
 	end
 
@@ -2460,6 +2463,47 @@ function Window:Modal(opts)
 	self.Modals = self.Modals or {}
 	table.insert(self.Modals, api)
 	return api
+end
+
+function Window:Confirm(opts)
+	opts = opts or {}
+
+	local modal = self:Modal({
+		Title = opts.Title or "confirm",
+		Width = opts.Width or 280,
+		Height = opts.Height or 150,
+		Dim = opts.Dim or 0.45,
+		Blur = opts.Blur or 10,
+	})
+
+	local content = modal.Content
+	content:Label(opts.Text or "are you sure?", { Style = "text" })
+
+	local answered = false
+	local function answer(callback)
+		answered = true
+		modal:SetOpen(false)
+		if callback then task.spawn(callback) end
+	end
+
+	content:ButtonRow({
+		{
+			Text = opts.Confirm or "save",
+			Callback = function() answer(opts.OnConfirm) end,
+		},
+		{
+			Text = opts.Cancel or "discard",
+			Callback = function() answer(opts.OnCancel) end,
+		},
+	})
+
+	modal.OnClose = function()
+		if not answered and opts.OnDismiss then task.spawn(opts.OnDismiss) end
+		answered = false
+	end
+
+	modal:SetOpen(true)
+	return modal
 end
 
 function Window:SetVisible(state)
@@ -2936,57 +2980,12 @@ function Library:SetToggleKey(key)
 	return self.ToggleKey or self.ToggleInput
 end
 
-Library.AcrylicEnabled = false
-Library.TransparencyEnabled = false
-Library.AcrylicSize = 18
-
-function Library:SetAcrylic(state, size)
-	self.AcrylicEnabled = state and true or false
-	if size then self.AcrylicSize = size end
-
-	if not self.AcrylicEnabled or not self.Open then
-		if self.AcrylicBlur then
-			local blur = self.AcrylicBlur
-			self.AcrylicBlur = nil
-			pcall(function()
-				Tween(blur, { Size = 0 }).Completed:Once(function() blur:Destroy() end)
-			end)
-		end
-		return self.AcrylicEnabled
-	end
-
-	if self.AcrylicBlur then
-		pcall(function() Tween(self.AcrylicBlur, { Size = self.AcrylicSize }) end)
-		return true
-	end
-
-	pcall(function()
-		local blur = Instance.new("BlurEffect")
-		blur.Name = "FacilityAcrylic"
-		blur.Size = 0
-		blur.Parent = Lighting
-		self.AcrylicBlur = blur
-		Tween(blur, { Size = self.AcrylicSize })
-	end)
-	return true
-end
-
-function Library:SetTransparency(state)
-	self.TransparencyEnabled = state and true or false
-	local opacity = self.TransparencyEnabled and 0.88 or 1
-	for _, window in ipairs(self.Windows) do
-		window:SetOpacity(opacity)
-	end
-	return self.TransparencyEnabled
-end
-
 function Library:ToggleUI(state)
 	if state == nil then state = not self.Open end
 	self.Open = state
 	for _, window in ipairs(self.Windows) do
 		window:SetVisible(state)
 	end
-	if self.AcrylicEnabled then self:SetAcrylic(true) end
 	return self.Open
 end
 
@@ -3085,7 +3084,6 @@ function Library:Destroy()
 	table.clear(self.Windows)
 	if self.NotifyGui then self.NotifyGui:Destroy() self.NotifyGui = nil end
 	if self.MobileGui then self.MobileGui:Destroy() self.MobileGui = nil self.MobileButton = nil end
-	if self.AcrylicBlur then pcall(function() self.AcrylicBlur:Destroy() end) self.AcrylicBlur = nil end
 	table.clear(self.Registry)
 	table.clear(self.Flags)
 end
