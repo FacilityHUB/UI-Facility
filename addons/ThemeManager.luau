@@ -169,7 +169,12 @@ return function(Library)
 			colors[entry[1]] = toHex(Theme[entry[1]], alphas[entry[1]])
 		end
 		local ok, encoded = pcall(function()
-			return HttpService:JSONEncode({ Preset = self.Current, Colors = colors })
+			return HttpService:JSONEncode({
+				Preset = self.Current,
+				Colors = colors,
+				Acrylic = self.Library.AcrylicEnabled == true,
+				Transparency = self.Library.TransparencyEnabled == true,
+			})
 		end)
 		if ok then self.Library.FileSystem:Write(self:Path(), encoded) end
 		return ok
@@ -182,6 +187,8 @@ return function(Library)
 		if not ok or type(data) ~= "table" then return false end
 
 		if data.Preset then self:Apply(data.Preset) end
+		if data.Acrylic ~= nil then self.Library:SetAcrylic(data.Acrylic) end
+		if data.Transparency ~= nil then self.Library:SetTransparency(data.Transparency) end
 		for key, hex in pairs(data.Colors or {}) do
 			local color, alpha = fromHex(hex)
 			if color and Theme[key] ~= nil then
@@ -211,6 +218,31 @@ return function(Library)
 				picker:Set(Theme[key], alphas[key] or 1, true)
 			end
 		end
+
+		content:Split({
+			function(left)
+				left:Toggle({
+					Text = "acrylic",
+					Flag = false,
+					Default = self.Library.AcrylicEnabled == true,
+					Callback = function(state)
+						self.Library:SetAcrylic(state)
+						if self.AutoSave then self:Save() end
+					end,
+				})
+			end,
+			function(right)
+				right:Toggle({
+					Text = "transparency",
+					Flag = false,
+					Default = self.Library.TransparencyEnabled == true,
+					Callback = function(state)
+						self.Library:SetTransparency(state)
+						if self.AutoSave then self:Save() end
+					end,
+				})
+			end,
+		})
 
 		presetBox = content:Dropdown({
 			Text = "preset",
