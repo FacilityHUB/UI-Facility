@@ -146,7 +146,7 @@ function Library:OnRepaint(callback)
 	return callback
 end
 Library.ThemeAlpha = ThemeAlpha
-Library.Version = "2026.09.02-labels"
+Library.Version = "2026.09.03-labels"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -585,7 +585,7 @@ function Elements:Label(text, opts)
 	local icon = AttachIcon(row, opts.Icon, color, 14)
 	local inset = icon and 20 or 0
 
-	local l = Label(row, text, color, opts.TextSize, opts.Font)
+	local l = Label(row, tostring(text or ""), color, opts.TextSize, opts.Font)
 	l.Position = UDim2.fromOffset(inset, 0)
 	l.Size = UDim2.new(1, -inset, 0, 0)
 	l.AutomaticSize = Enum.AutomaticSize.Y
@@ -593,7 +593,16 @@ function Elements:Label(text, opts)
 	l.TextYAlignment = Enum.TextYAlignment.Top
 
 	local api = { Instance = row, Text = l, Icon = icon }
-	function api:Set(value) l.Text = tostring(value) end
+
+	local function syncVisibility()
+		if opts.KeepSpace then return end
+		row.Visible = l.Text ~= ""
+	end
+
+	function api:Set(value)
+		l.Text = tostring(value or "")
+		syncVisibility()
+	end
 	function api:SetColor(c)
 		l.TextColor3 = c
 		if icon then icon.ImageColor3 = c end
@@ -601,6 +610,8 @@ function Elements:Label(text, opts)
 	function api:SetStyle(style)
 		api:SetColor(StyleColor(style, Theme.TextDim))
 	end
+
+	syncVisibility()
 	return api
 end
 
