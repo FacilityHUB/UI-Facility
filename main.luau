@@ -1,3 +1,5 @@
+-- 1
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
@@ -146,7 +148,7 @@ function Library:OnRepaint(callback)
 	return callback
 end
 Library.ThemeAlpha = ThemeAlpha
-Library.Version = "2026.09.03-panelfloat"
+Library.Version = "2026.09.03-collapse"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -3186,6 +3188,7 @@ function Library:Panel(opts)
 	})
 	List(stack, 0)
 
+	local headerChevron, headerTitle, headerButton
 	if opts.Title then
 		local header = New("Frame", {
 			Size = UDim2.new(1, 0, 0, 32),
@@ -3200,9 +3203,22 @@ function Library:Panel(opts)
 			icon.Position = UDim2.new(0, 0, 0.5, 0)
 		end
 		local inset = icon and 20 or 0
-		local title = Label(header, opts.Title, Theme.TextBright, Theme.TextSize, Theme.FontMedium)
-		title.Position = UDim2.fromOffset(inset, 0)
-		title.Size = UDim2.new(1, -inset, 1, 0)
+		headerTitle = Label(header, opts.Title, Theme.TextBright, Theme.TextSize, Theme.FontMedium)
+		headerTitle.Position = UDim2.fromOffset(inset, 0)
+		headerTitle.Size = UDim2.new(1, -inset - 16, 1, 0)
+
+		headerChevron = Chevron(header, Theme.TextDim)
+		headerChevron.AnchorPoint = Vector2.new(1, 0.5)
+		headerChevron.Position = UDim2.new(1, 0, 0.5, 0)
+
+		headerButton = New("TextButton", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			AutoButtonColor = false,
+			Text = "",
+			ZIndex = 2,
+			Parent = header,
+		})
 
 		New("Frame", {
 			Size = UDim2.new(1, 0, 0, 1),
@@ -3253,6 +3269,55 @@ function Library:Panel(opts)
 	}, { __index = Window })
 
 	api.Content = NewContainer(api, body)
+	api.Open = true
+
+	function api:SetOpen(state)
+		state = state ~= false
+		if state == self.Open then return end
+		self.Open = state
+		self:CloseFloating()
+
+		if state then
+			body.Visible = true
+			body.Size = UDim2.new(1, 0, 0, 0)
+			local target = body.AbsoluteSize.Y
+			body.AutomaticSize = Enum.AutomaticSize.Y
+			target = body.AbsoluteSize.Y
+			body.AutomaticSize = Enum.AutomaticSize.None
+			body.Size = UDim2.new(1, 0, 0, 0)
+			Tween(body, { Size = UDim2.new(1, 0, 0, target) }).Completed:Once(function()
+				if self.Open then body.AutomaticSize = Enum.AutomaticSize.Y end
+			end)
+		else
+			local current = body.AbsoluteSize.Y
+			body.AutomaticSize = Enum.AutomaticSize.None
+			body.Size = UDim2.new(1, 0, 0, current)
+			Tween(body, { Size = UDim2.new(1, 0, 0, 0) }).Completed:Once(function()
+				if not self.Open then body.Visible = false end
+			end)
+		end
+
+		if headerChevron then
+			Tween(headerChevron, { Rotation = state and 0 or 180 }, EASE_FAST)
+		end
+		return self
+	end
+
+	function api:Toggle()
+		return self:SetOpen(not self.Open)
+	end
+
+	if headerButton then
+		Track(headerButton.Activated:Connect(function()
+			api:Toggle()
+		end))
+		Track(headerButton.MouseEnter:Connect(function()
+			Tween(headerTitle, { TextColor3 = Theme.AccentSoft }, EASE_FAST)
+		end))
+		Track(headerButton.MouseLeave:Connect(function()
+			Tween(headerTitle, { TextColor3 = Theme.TextBright }, EASE_FAST)
+		end))
+	end
 
 	Track(blocker.Activated:Connect(function()
 		api:CloseFloating()
@@ -3299,6 +3364,7 @@ function Library:Panel(opts)
 	end
 
 	if opts.Visible == false then api:SetVisible(false) end
+	if opts.Collapsed then api:SetOpen(false) end
 
 	table.insert(self.Panels, api)
 	return api
