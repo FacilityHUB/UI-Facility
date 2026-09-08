@@ -1,4 +1,4 @@
--- 1
+-- 2
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -148,7 +148,7 @@ function Library:OnRepaint(callback)
 	return callback
 end
 Library.ThemeAlpha = ThemeAlpha
-Library.Version = "2026.09.03-collapse"
+Library.Version = "2026.09.03-collapse-2"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -3212,7 +3212,9 @@ function Library:Panel(opts)
 		headerChevron.Position = UDim2.new(1, 0, 0.5, 0)
 
 		headerButton = New("TextButton", {
-			Size = UDim2.fromScale(1, 1),
+			Size = UDim2.fromOffset(26, 26),
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, 6, 0.5, 0),
 			BackgroundTransparency = 1,
 			AutoButtonColor = false,
 			Text = "",
@@ -3233,6 +3235,7 @@ function Library:Panel(opts)
 		Size = UDim2.new(1, 0, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
+		ClipsDescendants = true,
 		LayoutOrder = 3,
 		Parent = stack,
 	})
@@ -3312,10 +3315,18 @@ function Library:Panel(opts)
 			api:Toggle()
 		end))
 		Track(headerButton.MouseEnter:Connect(function()
-			Tween(headerTitle, { TextColor3 = Theme.AccentSoft }, EASE_FAST)
+			for _, bar in ipairs(headerChevron:GetChildren()) do
+				if bar:IsA("Frame") then
+					Tween(bar, { BackgroundColor3 = Theme.AccentSoft }, EASE_FAST)
+				end
+			end
 		end))
 		Track(headerButton.MouseLeave:Connect(function()
-			Tween(headerTitle, { TextColor3 = Theme.TextBright }, EASE_FAST)
+			for _, bar in ipairs(headerChevron:GetChildren()) do
+				if bar:IsA("Frame") then
+					Tween(bar, { BackgroundColor3 = Theme.TextDim }, EASE_FAST)
+				end
+			end
 		end))
 	end
 
