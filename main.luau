@@ -1,5 +1,3 @@
--- 2
-
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
@@ -148,7 +146,7 @@ function Library:OnRepaint(callback)
 	return callback
 end
 Library.ThemeAlpha = ThemeAlpha
-Library.Version = "2026.09.03-collapse-2"
+Library.Version = "2026.09.03-nolocale"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -2686,6 +2684,7 @@ function Library:Window(opts)
 		Name = opts.Name or "Facility",
 		ResetOnSpawn = false,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		AutoLocalize = false,
 		IgnoreGuiInset = true,
 		DisplayOrder = 999,
 	})
@@ -3012,6 +3011,7 @@ function Library:Notify(opts, text, duration)
 			ResetOnSpawn = false,
 			IgnoreGuiInset = true,
 			ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		AutoLocalize = false,
 			DisplayOrder = 1000,
 		})
 		ParentGui(gui)
@@ -3155,6 +3155,7 @@ function Library:Panel(opts)
 		ResetOnSpawn = false,
 		IgnoreGuiInset = true,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		AutoLocalize = false,
 		DisplayOrder = opts.DisplayOrder or 997,
 	})
 	ParentGui(gui)
@@ -3399,6 +3400,7 @@ function Library:CreateHotkeyPanel(opts)
 		ResetOnSpawn = false,
 		IgnoreGuiInset = true,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		AutoLocalize = false,
 		DisplayOrder = 998,
 		Enabled = false,
 	})
@@ -3556,6 +3558,7 @@ function Library:CreateMobileButton(opts)
 		ResetOnSpawn = false,
 		IgnoreGuiInset = true,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		AutoLocalize = false,
 		DisplayOrder = 1001,
 	})
 	ParentGui(gui)
