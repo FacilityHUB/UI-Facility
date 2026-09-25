@@ -1,3 +1,5 @@
+--1
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
@@ -1428,7 +1430,6 @@ function Elements:Slider(opts)
 	local valueBox = New("TextBox", {
 		Size = UDim2.fromOffset(0, 16),
 		AutomaticSize = Enum.AutomaticSize.X,
-		MinTextSize = 12,
 		BackgroundTransparency = 1,
 		Text = "",
 		TextColor3 = Theme.TextDim,
