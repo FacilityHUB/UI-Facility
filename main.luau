@@ -1,5 +1,3 @@
--- 1
-
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
@@ -150,7 +148,7 @@ function Library:OnRepaint(callback)
 	return callback
 end
 Library.ThemeAlpha = ThemeAlpha
-Library.Version = "2026.09.06-polish-2"
+Library.Version = "2026.09.06-slider-edit"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -1427,10 +1425,22 @@ function Elements:Slider(opts)
 	name.Size = UDim2.fromOffset(0, 16)
 	name.AutomaticSize = Enum.AutomaticSize.X
 
-	local valueLabel = Label(head, "", Theme.TextDim, 12)
-	valueLabel.Size = UDim2.fromOffset(0, 16)
-	valueLabel.AutomaticSize = Enum.AutomaticSize.X
-	valueLabel.LayoutOrder = 2
+	local valueBox = New("TextBox", {
+		Size = UDim2.fromOffset(0, 16),
+		AutomaticSize = Enum.AutomaticSize.X,
+		MinTextSize = 12,
+		BackgroundTransparency = 1,
+		Text = "",
+		TextColor3 = Theme.TextDim,
+		TextSize = 12,
+		Font = Theme.Font,
+		PlaceholderColor3 = Theme.TextDim,
+		ClearTextOnFocus = true,
+		LayoutOrder = 2,
+		Parent = head,
+	})
+
+	local valueLabel = valueBox
 
 	local track = New("TextButton", {
 		Size = UDim2.new(1, 0, 0, 4),
@@ -1481,8 +1491,27 @@ function Elements:Slider(opts)
 		local info = animate and EASE_FAST or TweenInfo.new(0)
 		Tween(fill, { Size = UDim2.fromScale(alpha, 1) }, info)
 		Tween(knob, { Position = UDim2.new(alpha, 0, 0.5, 0) }, info)
-		valueLabel.Text = format(v)
+		valueBox.Text = format(v)
 	end
+
+	Track(valueBox.Focused:Connect(function()
+		valueBox.Text = tostring(math.floor(value * 10^decimals + 0.5) / 10^decimals)
+		valueBox.TextColor3 = Theme.TextBright
+	end))
+
+	Track(valueBox.FocusLost:Connect(function(entered)
+		valueBox.TextColor3 = Theme.TextDim
+		if entered then
+			local num = tonumber(valueBox.Text)
+			if num then
+				api:Set(num)
+			else
+				render(value, false)
+			end
+		else
+			render(value, false)
+		end
+	end))
 
 	function api:Set(v, silent)
 		v = math.clamp(v, min, max)
@@ -2812,22 +2841,6 @@ function Library:Window(opts)
 		BorderSizePixel = 0,
 		Parent = gui,
 	})
-	local shadowFrame = New("Frame", {
-		Size = UDim2.new(1, 24, 1, 24),
-		Position = UDim2.fromOffset(-12, -8),
-		AnchorPoint = Vector2.new(0, 0),
-		BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-		BackgroundTransparency = 0.72,
-		BorderSizePixel = 0,
-		ZIndex = main.ZIndex - 1,
-		Parent = main.Parent,
-	})
-	Corner(shadowFrame, 14)
-	Track(main:GetPropertyChangedSignal("Position"):Connect(function()
-		shadowFrame.Position = UDim2.new(
-			main.Position.X.Scale, main.Position.X.Offset - 12,
-			main.Position.Y.Scale, main.Position.Y.Offset - 8)
-	end))
 	Corner(main, 10)
 	Stroke(main, Theme.WindowBorder)
 	local scale = New("UIScale", { Parent = main })
