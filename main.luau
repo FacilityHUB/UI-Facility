@@ -1,5 +1,3 @@
--- 1
-
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
@@ -150,7 +148,7 @@ function Library:OnRepaint(callback)
 	return callback
 end
 Library.ThemeAlpha = ThemeAlpha
-Library.Version = "2026.09.05-textbox"
+Library.Version = "2026.09.06-polish"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -2298,6 +2296,7 @@ function Window:Tab(name, icon)
 		AutomaticCanvasSize = Enum.AutomaticSize.Y,
 		ScrollBarThickness = 3,
 		ScrollBarImageColor3 = Theme.AccentDim,
+		ScrollBarImageTransparency = 0.3,
 		VerticalScrollBarInset = Enum.ScrollBarInset.None,
 		Visible = false,
 		Parent = self.Body,
@@ -2326,7 +2325,21 @@ function Window:Tab(name, icon)
 		LayoutOrder = self:NextTabOrder(),
 		Parent = self.TabBar,
 	})
-	if side then Corner(button, 5) end
+	if side then
+		Corner(button, 5)
+		New("Frame", {
+			Size = UDim2.fromOffset(2, 0),
+			AnchorPoint = Vector2.new(0, 0.5),
+			Position = UDim2.new(0, 0, 0.5, 0),
+			BackgroundColor3 = Theme.Accent,
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+			Name = "ActiveBar",
+			ZIndex = 2,
+			Parent = button,
+		})
+		Corner(button:FindFirstChild("ActiveBar") or button, 2)
+	end
 
 	local row = New("Frame", {
 		Size = side and UDim2.new(1, -20, 1, 0) or UDim2.new(0, 0, 1, 0),
@@ -2354,13 +2367,18 @@ function Window:Tab(name, icon)
 	tab.Label = label
 	tab.Icon = icon
 
+	local activeBar = side and button:FindFirstChild("ActiveBar") or nil
+
 	function tab:SetActive(active, animate)
 		local info = animate and EASE_FAST or TweenInfo.new(0)
 		local color = active and Theme.Accent or Theme.TextDim
 		Tween(label, { TextColor3 = color }, info)
 		if icon then Tween(icon, { ImageColor3 = color }, info) end
 		if side then
-			Tween(button, { BackgroundTransparency = active and 0 or 1 }, info)
+			Tween(button, { BackgroundTransparency = active and 0.85 or 1 }, info)
+			if activeBar then
+				Tween(activeBar, { BackgroundTransparency = active and 0 or 1 }, info)
+			end
 		end
 	end
 
@@ -2791,6 +2809,18 @@ function Library:Window(opts)
 		BackgroundTransparency = Theme.WindowAlpha,
 		BorderSizePixel = 0,
 		Parent = gui,
+	})
+	local shadow = New("ImageLabel", {
+		Size = UDim2.new(1, 40, 1, 40),
+		Position = UDim2.fromOffset(-20, -20),
+		BackgroundTransparency = 1,
+		Image = "rbxassetid://6014261993",
+		ImageColor3 = Color3.fromRGB(0, 0, 0),
+		ImageTransparency = 0.5,
+		ScaleType = Enum.ScaleType.Slice,
+		SliceCenter = Rect.new(49, 49, 450, 450),
+		ZIndex = -1,
+		Parent = main,
 	})
 	Corner(main, 10)
 	Stroke(main, Theme.WindowBorder)
@@ -3223,8 +3253,9 @@ function Library:Notify(opts, text, duration)
 		text.TextTransparency = 1
 	end
 
-	card.Position = UDim2.fromOffset(20, 0)
-	Tween(card, { BackgroundTransparency = 0, Position = UDim2.fromOffset(0, 0) })
+	card.Position = UDim2.new(1, 0, 0, 0)
+	card.BackgroundTransparency = 0
+	Tween(card, { Position = UDim2.fromOffset(0, 0) })
 	Tween(cStroke, { Transparency = 0 })
 	Tween(bar, { BackgroundTransparency = 0 })
 	Tween(barCover, { BackgroundTransparency = 0 })
@@ -3241,6 +3272,7 @@ function Library:Notify(opts, text, duration)
 		Tween(head, { TextTransparency = 1 })
 		if icon then Tween(icon, { ImageTransparency = 1 }) end
 		if text then Tween(text, { TextTransparency = 1 }) end
+		Tween(card, { Position = UDim2.new(0, 20, 0, 0) })
 		task.wait(0.22)
 		card:Destroy()
 	end)
