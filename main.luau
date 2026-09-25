@@ -1,5 +1,3 @@
---1
-
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
@@ -150,7 +148,7 @@ function Library:OnRepaint(callback)
 	return callback
 end
 Library.ThemeAlpha = ThemeAlpha
-Library.Version = "2026.09.06-slider-edit"
+Library.Version = "2026.09.06-smooth"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -201,21 +199,36 @@ function Library:SetColor(key, color, alpha)
 	return true
 end
 
-function Library:Repaint()
+function Library:Repaint(duration)
 	if #Painted == 0 then
 		warn("Facility | repaint registry is empty, main.luau is probably outdated")
 	end
 	IndexTheme()
+
+	local info = (duration and duration > 0)
+		and TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		or nil
+
 	for i = #Painted, 1, -1 do
 		local entry = Painted[i]
 		local ok = pcall(function()
 			local instance, property, key = entry[1], entry[2], entry[3]
-			instance[property] = Theme[key]
+			local color = Theme[key]
+
+			if info then
+				Tween(instance, { [property] = color }, info)
+			else
+				instance[property] = color
+			end
 
 			local alpha = ThemeAlpha[key]
 			local transparency = ALPHA_PROPS[property]
 			if alpha and transparency and instance[transparency] < 1 then
-				instance[transparency] = 1 - alpha
+				if info then
+					Tween(instance, { [transparency] = 1 - alpha }, info)
+				else
+					instance[transparency] = 1 - alpha
+				end
 			end
 		end)
 		if not ok then table.remove(Painted, i) end
