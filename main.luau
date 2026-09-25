@@ -1,8 +1,18 @@
---1
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
+
+local CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+local function RandomName(len)
+	len = len or 12
+	local t = {}
+	for i = 1, len do
+		local idx = math.random(1, #CHARS)
+		t[i] = string.sub(CHARS, idx, idx)
+	end
+	return table.concat(t)
+end
 local RunService = game:GetService("RunService")
 local GuiService = game:GetService("GuiService")
 
@@ -74,6 +84,8 @@ local function AccentHex()
 		math.floor(Theme.Accent.G * 255 + 0.5),
 		math.floor(Theme.Accent.B * 255 + 0.5))
 end
+
+local MAX_DISPLAY_ORDER = 2^53
 
 local EASE      = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local EASE_FAST = TweenInfo.new(0.10, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -149,7 +161,7 @@ function Library:OnRepaint(callback)
 	return callback
 end
 Library.ThemeAlpha = ThemeAlpha
-Library.Version = "2026.09.06-revert"
+Library.Version = "2026.09.07-stealth"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -2820,12 +2832,12 @@ function Library:Window(opts)
 	local height = opts.Height or 560
 
 	local gui = New("ScreenGui", {
-		Name = opts.Name or "Facility",
+		Name = RandomName(),
 		ResetOnSpawn = false,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		AutoLocalize = false,
 		IgnoreGuiInset = true,
-		DisplayOrder = 999,
+		DisplayOrder = MAX_DISPLAY_ORDER,
 	})
 	ParentGui(gui)
 
@@ -3180,12 +3192,12 @@ function Library:Notify(opts, text, duration)
 	end
 	if not self.NotifyGui then
 		local gui = New("ScreenGui", {
-			Name = "FacilityNotifications",
+			Name = RandomName(),
 			ResetOnSpawn = false,
 			IgnoreGuiInset = true,
 			ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		AutoLocalize = false,
-			DisplayOrder = 1000,
+			DisplayOrder = MAX_DISPLAY_ORDER,
 		})
 		ParentGui(gui)
 		local holder = New("Frame", {
@@ -3326,7 +3338,7 @@ function Library:Panel(opts)
 	opts = opts or {}
 
 	local gui = New("ScreenGui", {
-		Name = opts.Name or "FacilityPanel",
+		Name = RandomName(),
 		ResetOnSpawn = false,
 		IgnoreGuiInset = true,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
@@ -3335,6 +3347,8 @@ function Library:Panel(opts)
 	})
 	ParentGui(gui)
 
+	gui.Name = RandomName()
+	gui.DisplayOrder = MAX_DISPLAY_ORDER
 	local root = New("Frame", {
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
@@ -3571,12 +3585,12 @@ function Library:CreateHotkeyPanel(opts)
 	opts = opts or {}
 
 	local gui = New("ScreenGui", {
-		Name = "FacilityHotkeys",
+		Name = RandomName(),
 		ResetOnSpawn = false,
 		IgnoreGuiInset = true,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		AutoLocalize = false,
-		DisplayOrder = 998,
+		DisplayOrder = MAX_DISPLAY_ORDER,
 		Enabled = false,
 	})
 	ParentGui(gui)
@@ -3726,12 +3740,12 @@ function Library:CreateCursor(opts)
 	local gap = opts.Gap or 4
 
 	local gui = New("ScreenGui", {
-		Name = "FacilityCursor",
+		Name = RandomName(),
 		ResetOnSpawn = false,
 		IgnoreGuiInset = true,
 		AutoLocalize = false,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-		DisplayOrder = 1002,
+		DisplayOrder = MAX_DISPLAY_ORDER,
 		Enabled = false,
 	})
 	ParentGui(gui)
@@ -3806,12 +3820,12 @@ function Library:CreateMobileButton(opts)
 	opts = opts or {}
 
 	local gui = New("ScreenGui", {
-		Name = "FacilityToggle",
+		Name = RandomName(),
 		ResetOnSpawn = false,
 		IgnoreGuiInset = true,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		AutoLocalize = false,
-		DisplayOrder = 1001,
+		DisplayOrder = MAX_DISPLAY_ORDER,
 	})
 	ParentGui(gui)
 
