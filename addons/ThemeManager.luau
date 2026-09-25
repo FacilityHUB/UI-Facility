@@ -1,6 +1,3 @@
--- Facility addon | ThemeManager
--- Presets de couleurs, edition par element, recoloration a chaud.
-
 return function(Library)
 	local HttpService = game:GetService("HttpService")
 	local Theme = Library.Theme
@@ -113,7 +110,7 @@ return function(Library)
 		Theme.Accent = color
 		Theme.AccentSoft = tint(color, 0.78, 1.08)
 		Theme.AccentDim = tint(color, 0.72, 0.64)
-		self.Library:Repaint()
+		self.Library:Repaint(0.35)
 		if self.AutoSave then self:Save() end
 		return true
 	end
@@ -234,7 +231,7 @@ return function(Library)
 				alphas[key] = snapshotAlphas[key]
 			end
 			self.Current = snapshotPreset
-			self.Library:Repaint()
+			self.Library:Repaint(0.35)
 			syncPickers()
 			if presetBox and snapshotPreset then presetBox:Set(snapshotPreset, true) end
 			dirty = false
@@ -265,6 +262,7 @@ return function(Library)
 				DefaultAlpha = alphas[key] or 1,
 				Callback = function(color, alpha)
 					self.Library:SetColor(key, color, alpha)
+					self.Library:Repaint(0.2)
 					dirty = true
 					if key == "Accent" then
 						self:SetAccent(color)
@@ -286,7 +284,7 @@ return function(Library)
 					alphas[key] = 1
 				end
 				self.Current = "facility"
-				self.Library:Repaint()
+				self.Library:Repaint(0.35)
 				syncPickers()
 				if presetBox then presetBox:Set("facility", true) end
 				dirty = true
