@@ -1,3 +1,5 @@
+-- 1
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
@@ -148,7 +150,7 @@ function Library:OnRepaint(callback)
 	return callback
 end
 Library.ThemeAlpha = ThemeAlpha
-Library.Version = "2026.09.06-polish"
+Library.Version = "2026.09.06-polish-2"
 
 function Library:LoadAddon(name)
 	if self.Addons[name] ~= nil then return self.Addons[name] end
@@ -2810,18 +2812,22 @@ function Library:Window(opts)
 		BorderSizePixel = 0,
 		Parent = gui,
 	})
-	local shadow = New("ImageLabel", {
-		Size = UDim2.new(1, 40, 1, 40),
-		Position = UDim2.fromOffset(-20, -20),
-		BackgroundTransparency = 1,
-		Image = "rbxassetid://6014261993",
-		ImageColor3 = Color3.fromRGB(0, 0, 0),
-		ImageTransparency = 0.5,
-		ScaleType = Enum.ScaleType.Slice,
-		SliceCenter = Rect.new(49, 49, 450, 450),
-		ZIndex = -1,
-		Parent = main,
+	local shadowFrame = New("Frame", {
+		Size = UDim2.new(1, 24, 1, 24),
+		Position = UDim2.fromOffset(-12, -8),
+		AnchorPoint = Vector2.new(0, 0),
+		BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+		BackgroundTransparency = 0.72,
+		BorderSizePixel = 0,
+		ZIndex = main.ZIndex - 1,
+		Parent = main.Parent,
 	})
+	Corner(shadowFrame, 14)
+	Track(main:GetPropertyChangedSignal("Position"):Connect(function()
+		shadowFrame.Position = UDim2.new(
+			main.Position.X.Scale, main.Position.X.Offset - 12,
+			main.Position.Y.Scale, main.Position.Y.Offset - 8)
+	end))
 	Corner(main, 10)
 	Stroke(main, Theme.WindowBorder)
 	local scale = New("UIScale", { Parent = main })
